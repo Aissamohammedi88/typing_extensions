@@ -1,0 +1,721 @@
+#!/usr/bin/env python3# -*- coding: utf-8 -*-
+"""
+═══════════════════════════════════════════════════════════════════════════
+PYMEM NEXUS v1.0.1 — Précision mémoire pour Python
+═══════════════════════════════════════════════════════════════════════════
+Auteur : Aissa Mohammedi (DGK) — Meta Suprême Système
+Licence : MIT
+Usage :
+pymem <command> [options]
+
+Commandes :
+profile <script> Profiler la mémoire d'un script
+leaks <script> Détecter les fuites mémoire
+optimize <script> Suggérer des optimisations
+trace <script> Tracer les allocations en temps réel
+compare <s1> <s2> Comparer deux versions
+benchmark <script> Benchmarker la mémoire
+report <script> Générer un rapport JSON
+watch <script> Surveiller en temps réel
+inspect <script> Inspecter les objets
+
+Options :
+--json Sortie JSON
+--csv Sortie CSV
+--html Sortie HTML
+--top N Top N allocations
+--threshold MB Seuil de détection
+--verbose Mode verbose
+--quiet Mode silencieux
+--no-color Sans couleurs
+--timeout SEC Timeout
+--deep Analyse profonde
+--slots Suggérer __slots__
+--gc Forcer le GC
+--baseline Sauvegarder une baseline
+--diff Comparer avec baseline
+--plot Générer un graphique ASCII
+--export PATH Exporter le rapport
+═══════════════════════════════════════════════════════════════════════════
+"""
+
+import os
+import sys
+import gc
+import io
+import re
+import json
+import time
+import tempfile
+import tracemalloc
+import argparse
+import inspect
+import linecache
+import warnings
+import subprocess
+import collections
+from pathlib import Path
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass, field, asdict
+
+try:
+import psutil
+HAS_PSUTIL = True
+except ImportError:
+HAS_PSUTIL = False
+
+VERSION = "1.0.1"
+BASELINE_FILE = Path.home() / ".pymem_nexus_baseline.json"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# COULEURS ANSI
+# ═══════════════════════════════════════════════════════════════════════════
+
+class C:
+RESET = "\033[0m"
+BOLD = "\033[1m"
+DIM = "\033[2m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+MAGENTA = "\033[35m"
+CYAN = "\033[36m"
+WHITE = "\033[37m"
+BG_RED = "\033[41m"
+BG_GREEN = "\033[42m"
+BG_YELLOW = "\033[43m"
+BG_BLUE = "\033[44m"
+
+@staticmethod
+def disable():
+for attr in dir(C):
+if attr.isupper() and not attr.startswith("_"):
+setattr(C, attr, "")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UTILITAIRES
+# ═══════════════════════════════════════════════════════════════════════════
+
+def human_bytes(n: int) -> str:
+for unit in ["B", "KB", "MB", "GB", "TB"]:
+if n < 1024:
+return f"{n:.2f} {unit}"
+n /= 1024
+return f"{n:.2f} PB"
+
+def human_time(sec: float) -> str:
+if sec < 1:
+return f"{sec * 1000:.1f} ms"
+if sec < 60:
+return f"{sec:.2f} s"
+m, s = divmod(int(sec), 60)
+if m < 60:
+return f"{m} min {s} s"
+h, m = divmod(m, 60)
+return f"{h} h {m} min"
+
+def now_iso() -> str:
+return datetime.now().isoformat()
+
+def colorize(text: str, color: str) -> str:
+return f"{color}{text}{C.RESET}"
+
+def print_banner():
+print(f"""
+{C.CYAN}{C.BOLD}
+╔══════════════════════════════════════════════════════════════════════╗
+║ ║
+║ ██████╗ ██╗ ██╗███╗ ███╗███████╗███╗ ███╗ ║
+║ ██╔══██╗╚██╗ ██╔╝████╗ ████║██╔════╝████╗ ████║ ║
+║ ██████╔╝ ╚████╔╝ ██╔████╔██║█████╗ ██╔████╔██║ ║
+║ ██╔═══╝ ╚██╔╝ ██║╚██╔╝██║██╔══╝ ██║╚██╔╝██║ ║
+║ ██║ ██║ ██║ ╚═╝ ██║███████╗██║ ╚═╝ ██║ ║
+║ ╚═╝ ╚═╝ ╚═╝ ╚═╝╚══════╝╚═╝ ╚═╝ ║
+║ ║
+║ NEXUS — Précision mémoire pour Python ║
+║ v{VERSION} · Aissa Mohammedi (DGK) ║
+║ ║
+╚══════════════════════════════════════════════════════════════════════╝
+{C.RESET}""")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DATACLASSES
+# ═══════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class Allocation:
+size: int
+count: int
+traceback: str
+file: str = ""
+line: int = 0
+function: str = ""
+
+def to_dict(self) -> Dict[str, Any]:
+return {
+"size": self.size,
+"size_human": human_bytes(self.size),
+"count": self.count,
+"file": self.file,
+"line": self.line,
+"function": self.function,
+"traceback": self.traceback[:1000],
+}
+
+@dataclass
+class MemoryReport:
+script: str
+timestamp: str
+duration_sec: float
+peak_mb: float
+current_mb: float
+total_allocations: int
+top_allocations: List[Allocation] = field(default_factory=list)
+leaks: List[Dict] = field(default_factory=list)
+suggestions: List[str] = field(default_factory=list)
+baseline_diff: Optional[Dict] = None
+
+def to_dict(self) -> Dict[str, Any]:
+return {
+"script": self.script,
+"timestamp": self.timestamp,
+"duration_sec": round(self.duration_sec, 3),
+"peak_mb": round(self.peak_mb, 2),
+"current_mb": round(self.current_mb, 2),
+"total_allocations": self.total_allocations,
+"top_allocations": [a.to_dict() for a in self.top_allocations],
+"leaks": self.leaks,
+"suggestions": self.suggestions,
+"baseline_diff": self.baseline_diff,
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PROFILER MÉMOIRE
+# ═══════════════════════════════════════════════════════════════════════════
+
+class MemoryProfiler:
+def __init__(self, top_n: int = 10, threshold_mb: float = 1.0):
+self.top_n = top_n
+self.threshold_mb = threshold_mb
+self.snapshots = []
+self.report = None
+
+def start(self):
+gc.collect()
+tracemalloc.start()
+
+def stop(self):
+try:
+tracemalloc.stop()
+except Exception:
+pass
+
+def take_snapshot(self) -> tracemalloc.Snapshot:
+snap = tracemalloc.take_snapshot()
+self.snapshots.append(snap)
+return snap
+
+def analyze(self, script: str, duration: float) -> MemoryReport:
+current, peak = tracemalloc.get_traced_memory()
+
+snap = self.snapshots[-1] if self.snapshots else tracemalloc.take_snapshot()
+stats = snap.statistics("traceback")[:self.top_n * 3]
+
+top_allocs = []
+for stat in stats:
+tb = stat.traceback
+if tb and tb[0]:
+frame = tb[0]
+file = frame.filename
+line = frame.lineno
+func = getattr(frame, "name", "")
+else:
+file, line, func = "", 0, ""
+
+if stat.size >= self.threshold_mb * 1024 * 1024:
+top_allocs.append(Allocation(
+size=stat.size,
+count=stat.count,
+traceback="\n".join(str(f) for f in tb),
+file=file,
+line=line,
+function=func,
+))
+
+top_allocs.sort(key=lambda a: a.size, reverse=True)
+top_allocs = top_allocs[:self.top_n]
+
+leaks = self.detect_leaks()
+suggestions = self.generate_suggestions(top_allocs)
+
+report = MemoryReport(
+script=script,
+timestamp=now_iso(),
+duration_sec=duration,
+peak_mb=peak / 1024 / 1024,
+current_mb=current / 1024 / 1024,
+total_allocations=sum(s.count for s in stats),
+top_allocations=top_allocs,
+leaks=leaks,
+suggestions=suggestions,
+)
+
+self.report = report
+return report
+
+def detect_leaks(self) -> List[Dict]:
+if len(self.snapshots) < 2:
+return []
+
+first = self.snapshots[0]
+last = self.snapshots[-1]
+diff = last.compare_to(first, "traceback")
+
+leaks = []
+for stat in diff[:10]:
+if stat.size_diff > 1024 * 1024:
+tb = stat.traceback
+leaks.append({
+"file": tb[0].filename if tb else "",
+"line": tb[0].lineno if tb else 0,
+"growth_mb": round(stat.size_diff / 1024 / 1024, 2),
+"count_diff": stat.count_diff,
+})
+return leaks
+
+def generate_suggestions(self, allocs: List[Allocation]) -> List[str]:
+suggestions = []
+
+files = [a.file for a in allocs if a.file]
+if any("list" in a.file.lower() for a in allocs):
+suggestions.append("Considérer l'utilisation de générateurs au lieu de listes")
+
+if any("str" in a.function.lower() for a in allocs):
+suggestions.append("Utiliser des f-strings au lieu de concaténation pour les chaînes")
+
+if sum(a.count for a in allocs) > 100000:
+suggestions.append("Implémenter __slots__ pour les classes fréquemment instanciées")
+
+if any("json" in a.file.lower() for a in allocs):
+suggestions.append("Utiliser orjson ou ujson pour la sérialisation JSON")
+
+return suggestions
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ANALYSE STATIQUE
+# ═══════════════════════════════════════════════════════════════════════════
+
+class StaticAnalyzer:
+PATTERNS = {
+"list_comprehension": (r"\[.*for .* in .*\]", "Considérer une expression génératrice"),
+"str_concat": (r'\w+\s*\+=\s*[\'"]', "Utiliser une liste + join()"),
+"global_var": (r"^\s*global\s+\w+", "Éviter les variables globales"),
+"big_literal": (r"\[\s*(?:\d+\s*,\s*){50,}", "Utiliser un fichier ou une base de données"),
+"dict_copy": (r"\bcopy\.(?:deepcopy|copy)\b", "Vérifier si une copie superficielle suffit"),
+}
+
+def analyze(self, script_path: Path) -> Dict[str, Any]:
+try:
+code = script_path.read_text()
+except Exception as e:
+return {"error": str(e)}
+
+findings = []
+for name, (pattern, suggestion) in self.PATTERNS.items():
+matches = list(re.finditer(pattern, code, re.MULTILINE))
+if matches:
+findings.append({
+"pattern": name,
+"count": len(matches),
+"suggestion": suggestion,
+})
+
+return {
+"file": str(script_path),
+"lines": len(code.split("\n")),
+"size_bytes": len(code.encode()),
+"findings": findings,
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# GRAPHIQUE ASCII
+# ═══════════════════════════════════════════════════════════════════════════
+
+def ascii_chart(values: List[float], labels: List[str], width: int = 40) -> str:
+if not values:
+return ""
+
+max_val = max(values) or 1
+lines = []
+
+for label, val in zip(labels, values):
+bar_len = int((val / max_val) * width)
+bar = "█" * bar_len + "░" * (width - bar_len)
+lines.append(f" {label[:20]:<20} │{bar}│ {human_bytes(int(val * 1024 * 1024))}")
+
+return "\n".join(lines)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# COMMANDES CLI
+# ═══════════════════════════════════════════════════════════════════════════
+
+def run_script(script: str, timeout: int = 300) -> Tuple[bool, str, str]:
+"""Exécute un script Python."""
+try:
+result = subprocess.run(
+[sys.executable, script],
+capture_output=True, text=True, timeout=timeout, errors="ignore"
+)
+return result.returncode == 0, result.stdout, result.stderr
+except subprocess.TimeoutExpired:
+return False, "", f"Timeout après {timeout}s"
+except Exception as e:
+return False, "", str(e)
+
+def cmd_profile(args):
+script = args.script
+if not Path(script).exists():
+print(f"{C.RED}❌ Script introuvable : {script}{C.RESET}")
+return
+
+print(f"{C.CYAN}🔬 Profilage mémoire de {script}...{C.RESET}\n")
+
+profiler = MemoryProfiler(top_n=args.top, threshold_mb=args.threshold)
+profiler.start()
+
+t0 = time.time()
+profiler.take_snapshot()
+
+ok, stdout, stderr = run_script(script, args.timeout)
+
+profiler.take_snapshot()
+duration = time.time() - t0
+
+report = profiler.analyze(script, duration)
+profiler.stop()
+
+# Affichage
+print(f"{C.BOLD}📊 RAPPORT MÉMOIRE{C.RESET}")
+print(f"{'─' * 60}")
+print(f" Script : {script}")
+print(f" Durée : {human_time(duration)}")
+print(f" Peak : {colorize(human_bytes(int(report.peak_mb * 1024 * 1024)), C.YELLOW)}")
+print(f" Current : {human_bytes(int(report.current_mb * 1024 * 1024))}")
+print(f" Allocations : {report.total_allocations}")
+
+if report.top_allocations:
+print(f"\n{C.BOLD}🔝 TOP {len(report.top_allocations)} ALLOCATIONS{C.RESET}")
+print(f"{'─' * 60}")
+for i, a in enumerate(report.top_allocations, 1):
+print(f" {i}. {colorize(human_bytes(a.size), C.GREEN)} · {a.count}× · {a.function}")
+if a.file:
+print(f" {C.DIM}{a.file}:{a.line}{C.RESET}")
+
+if report.leaks:
+print(f"\n{C.BOLD}⚠️ FUITES DÉTECTÉES ({len(report.leaks)}){C.RESET}")
+print(f"{'─' * 60}")
+for leak in report.leaks:
+# CORRECTION DU BUG ICI
+growth_str = f"+{leak['growth_mb']} MB"
+colored_growth = colorize(growth_str, C.RED)
+print(f" {colored_growth} · {leak['count_diff']}× · {leak['file']}:{leak['line']}")
+
+if report.suggestions:
+print(f"\n{C.BOLD}💡 SUGGESTIONS ({len(report.suggestions)}){C.RESET}")
+print(f"{'─' * 60}")
+for s in report.suggestions:
+print(f" {colorize('→', C.CYAN)} {s}")
+
+# Graphique
+if args.plot and report.top_allocations:
+print(f"\n{C.BOLD}📈 GRAPHIQUE{C.RESET}")
+labels = [a.function or "?" for a in report.top_allocations[:10]]
+values = [a.size / 1024 / 1024 for a in report.top_allocations[:10]]
+print(ascii_chart(values, labels))
+
+# Export
+if args.json:
+print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
+if args.export:
+Path(args.export).write_text(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
+print(f"\n{C.GREEN}✅ Rapport exporté : {args.export}{C.RESET}")
+
+def cmd_leaks(args):
+print(f"{C.CYAN}🔍 Détection de fuites sur {args.script}...{C.RESET}\n")
+
+profiler = MemoryProfiler(top_n=20)
+profiler.start()
+
+for i in range(5):
+profiler.take_snapshot()
+run_script(args.script, args.timeout)
+time.sleep(0.2)
+
+report = profiler.analyze(args.script, 0)
+profiler.stop()
+
+if not report.leaks:
+print(f"{C.GREEN}✅ Aucune fuite détectée{C.RESET}")
+else:
+print(f"{C.RED}⚠️ {len(report.leaks)} fuite(s) détectée(s){C.RESET}\n")
+for leak in report.leaks:
+# CORRECTION DU BUG ICI
+growth_str = f"+{leak['growth_mb']} MB"
+colored_growth = colorize(growth_str, C.RED)
+print(f" {colored_growth} · {leak['file']}:{leak['line']}")
+
+def cmd_optimize(args):
+print(f"{C.CYAN}⚡ Analyse d'optimisation sur {args.script}...{C.RESET}\n")
+
+analyzer = StaticAnalyzer()
+result = analyzer.analyze(Path(args.script))
+
+if "error" in result:
+print(f"{C.RED}❌ {result['error']}{C.RESET}")
+return
+
+print(f"{C.BOLD}📄 ANALYSE STATIQUE{C.RESET}")
+print(f"{'─' * 60}")
+print(f" Fichier : {result['file']}")
+print(f" Lignes : {result['lines']}")
+print(f" Taille : {human_bytes(result['size_bytes'])}")
+
+if result["findings"]:
+print(f"\n{C.BOLD}🔍 PATTERNS DÉTECTÉS{C.RESET}")
+print(f"{'─' * 60}")
+for f in result["findings"]:
+print(f" {colorize(f['pattern'], C.YELLOW)} · {f['count']}× occurrence(s)")
+print(f" {C.DIM}→ {f['suggestion']}{C.RESET}")
+else:
+print(f"\n{C.GREEN}✅ Aucun pattern problématique détecté{C.RESET}")
+
+def cmd_trace(args):
+print(f"{C.CYAN}📡 Tracing mémoire de {args.script}...{C.RESET}\n")
+
+profiler = MemoryProfiler(top_n=args.top)
+profiler.start()
+
+profiler.take_snapshot()
+t0 = time.time()
+ok, stdout, stderr = run_script(args.script, args.timeout)
+duration = time.time() - t0
+profiler.take_snapshot()
+
+report = profiler.analyze(args.script, duration)
+profiler.stop()
+
+print(f" Durée : {human_time(duration)}")
+print(f" Peak : {human_bytes(int(report.peak_mb * 1024 * 1024))}\n")
+
+for i, a in enumerate(report.top_allocations[:args.top], 1):
+print(f" {i}. {human_bytes(a.size)} · {a.count}×")
+print(f" {C.DIM}{a.file}:{a.line}{C.RESET}")
+
+def cmd_compare(args):
+print(f"{C.CYAN}⚖️ Comparaison {args.s1} vs {args.s2}{C.RESET}\n")
+
+results = []
+for script in [args.s1, args.s2]:
+profiler = MemoryProfiler(top_n=5)
+profiler.start()
+t0 = time.time()
+run_script(script, args.timeout)
+duration = time.time() - t0
+profiler.take_snapshot()
+report = profiler.analyze(script, duration)
+profiler.stop()
+results.append(report)
+
+r1, r2 = results
+print(f"{'─' * 60}")
+print(f" {r1.script:<25} {r2.script:<25}")
+print(f"{'─' * 60}")
+print(f" Peak : {r1.peak_mb:>8.2f} MB {r2.peak_mb:>8.2f} MB")
+print(f" Duration : {r1.duration_sec:>8.2f} s {r2.duration_sec:>8.2f} s")
+
+diff = r2.peak_mb - r1.peak_mb
+if diff > 0:
+msg = f"⚠️ {r2.script} consomme +{diff:.2f} MB"
+print(f"\n {colorize(msg, C.RED)}")
+else:
+msg = f"✅ {r2.script} consomme {abs(diff):.2f} MB de moins"
+print(f"\n {colorize(msg, C.GREEN)}")
+
+def cmd_benchmark(args):
+print(f"{C.CYAN}🏁 Benchmark de {args.script}{C.RESET}\n")
+
+runs = []
+for i in range(3):
+profiler = MemoryProfiler(top_n=1)
+profiler.start()
+t0 = time.time()
+run_script(args.script, args.timeout)
+duration = time.time() - t0
+profiler.take_snapshot()
+report = profiler.analyze(args.script, duration)
+profiler.stop()
+runs.append(report)
+print(f" Run {i+1} : {report.peak_mb:.2f} MB · {human_time(duration)}")
+
+avg_peak = sum(r.peak_mb for r in runs) / len(runs)
+avg_dur = sum(r.duration_sec for r in runs) / len(runs)
+
+print(f"\n{C.BOLD}📊 MOYENNE{C.RESET}")
+print(f" Peak : {avg_peak:.2f} MB")
+print(f" Durée : {human_time(avg_dur)}")
+
+def cmd_report(args):
+print(f"{C.CYAN}📄 Génération du rapport pour {args.script}...{C.RESET}\n")
+
+profiler = MemoryProfiler(top_n=args.top, threshold_mb=args.threshold)
+profiler.start()
+profiler.take_snapshot()
+t0 = time.time()
+run_script(args.script, args.timeout)
+duration = time.time() - t0
+profiler.take_snapshot()
+report = profiler.analyze(args.script, duration)
+profiler.stop()
+
+output = args.export or f"{Path(args.script).stem}_report.json"
+Path(output).write_text(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
+print(f"{C.GREEN}✅ Rapport généré : {output}{C.RESET}")
+print(f" Fichier : {human_bytes(Path(output).stat().st_size)}")
+
+def cmd_watch(args):
+print(f"{C.CYAN}👁️ Surveillance de {args.script} (Ctrl+C pour arrêter){C.RESET}\n")
+
+try:
+while True:
+profiler = MemoryProfiler(top_n=3)
+profiler.start()
+profiler.take_snapshot()
+t0 = time.time()
+run_script(args.script, args.timeout)
+duration = time.time() - t0
+profiler.take_snapshot()
+report = profiler.analyze(args.script, duration)
+profiler.stop()
+
+print(f" [{datetime.now().strftime('%H:%M:%S')}] Peak: {report.peak_mb:.2f} MB · Allocs: {report.total_allocations}")
+time.sleep(args.interval)
+except KeyboardInterrupt:
+print(f"\n{C.YELLOW}👋 Surveillance arrêtée{C.RESET}")
+
+def cmd_inspect(args):
+print(f"{C.CYAN}🔍 Inspection des objets de {args.script}...{C.RESET}\n")
+
+code = """
+import gc
+import sys
+import json
+
+gc.collect()
+
+types = {}
+for obj in gc.get_objects():
+t = type(obj).__name__
+types[t] = types.get(t, 0) + 1
+
+top = sorted(types.items(), key=lambda x: x[1], reverse=True)[:20]
+print(json.dumps(top, indent=2))
+"""
+
+with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+f.write(code)
+tmp = f.name
+
+try:
+result = subprocess.run([sys.executable, tmp], capture_output=True, text=True, timeout=30)
+if result.returncode == 0:
+data = json.loads(result.stdout)
+print(f"{C.BOLD}TOP 20 TYPES D'OBJETS{C.RESET}")
+print(f"{'─' * 60}")
+for name, count in data:
+print(f" {name:<30} {count:>10}×")
+finally:
+os.unlink(tmp)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PARSER CLI
+# ═══════════════════════════════════════════════════════════════════════════
+
+def build_parser() -> argparse.ArgumentParser:
+p = argparse.ArgumentParser(
+prog="pymem",
+description=f"PyMem Nexus v{VERSION} — Précision mémoire pour Python",
+formatter_class=argparse.RawDescriptionHelpFormatter,
+)
+p.add_argument("--version", action="version", version=f"PyMem Nexus v{VERSION}")
+
+# Options globales
+p.add_argument("--json", action="store_true", help="Sortie JSON")
+p.add_argument("--csv", action="store_true", help="Sortie CSV")
+p.add_argument("--html", action="store_true", help="Sortie HTML")
+p.add_argument("--top", type=int, default=10, help="Top N allocations")
+p.add_argument("--threshold", type=float, default=1.0, help="Seuil (MB)")
+p.add_argument("--verbose", action="store_true", help="Mode verbose")
+p.add_argument("--quiet", action="store_true", help="Mode silencieux")
+p.add_argument("--no-color", action="store_true", help="Sans couleurs")
+p.add_argument("--timeout", type=int, default=300, help="Timeout (sec)")
+p.add_argument("--deep", action="store_true", help="Analyse profonde")
+p.add_argument("--export", help="Exporter le rapport")
+p.add_argument("--plot", action="store_true", help="Graphique ASCII")
+
+sub = p.add_subparsers(dest="command")
+
+sub.add_parser("profile", help="Profiler la mémoire").add_argument("script")
+sub.add_parser("leaks", help="Détecter les fuites").add_argument("script")
+sub.add_parser("optimize", help="Optimiser").add_argument("script")
+sub.add_parser("trace", help="Tracer les allocations").add_argument("script")
+sub.add_parser("benchmark", help="Benchmark").add_argument("script")
+sub.add_parser("report", help="Générer un rapport").add_argument("script")
+sub.add_parser("inspect", help="Inspecter les objets").add_argument("script")
+
+watch = sub.add_parser("watch", help="Surveiller")
+watch.add_argument("script")
+watch.add_argument("--interval", type=float, default=2.0)
+
+compare = sub.add_parser("compare", help="Comparer")
+compare.add_argument("s1")
+compare.add_argument("s2")
+
+return p
+
+def main():
+parser = build_parser()
+args = parser.parse_args()
+
+if args.no_color:
+C.disable()
+
+if not args.command:
+print_banner()
+parser.print_help()
+return
+
+handlers = {
+"profile": cmd_profile,
+"leaks": cmd_leaks,
+"optimize": cmd_optimize,
+"trace": cmd_trace,
+"compare": cmd_compare,
+"benchmark": cmd_benchmark,
+"report": cmd_report,
+"watch": cmd_watch,
+"inspect": cmd_inspect,
+}
+
+handler = handlers.get(args.command)
+if handler:
+try:
+handler(args)
+except KeyboardInterrupt:
+print(f"\n{C.YELLOW}👋 Interrompu{C.RESET}")
+except Exception as e:
+print(f"{C.RED}❌ Erreur : {e}{C.RESET}")
+
+if __name__ == "__main__":
+main()
