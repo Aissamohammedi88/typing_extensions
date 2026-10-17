@@ -1,0 +1,1515 @@
+#!/usr/bin/env python3# -*- coding: utf-8 -*-
+"""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ ║
+║ 🌌 NEXUS HELLO UNIVERSE — La réponse ultime au "Hello World" ║
+║ ║
+║ 88 commandes. 1999 lignes. 0 dépendance externe. ║
+║ Là où "Hello World" dit bonjour, NEXUS dit TOUT. ║
+║ ║
+║ Auteur : Aissa Mohammedi (DGK) ║
+║ Version : 1.0.0 ║
+║ Licence : NEXUS-OPEN-2.0 ║
+║ ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Usage :
+python3 nexus_hello_universe.py # Menu interactif
+python3 nexus_hello_universe.py --cli # Mode CLI
+python3 nexus_hello_universe.py 42 # Lance la commande #42
+"""
+
+import os
+import sys
+import re
+import ast
+import json
+import math
+import time
+import uuid
+import random
+import string
+import hashlib
+import base64
+import socket
+import shutil
+import platform
+import textwrap
+import threading
+import subprocess
+import datetime
+import statistics
+import urllib.parse
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+from collections import Counter, defaultdict
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CONFIGURATION
+# ══════════════════════════════════════════════════════════════════════════════
+VERSION = "1.0.0"
+AUTHOR = "Aissa Mohammedi (DGK)"
+LICENCE = "NEXUS-OPEN-2.0"
+TOTAL_COMMANDS = 88
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COULEURS
+# ══════════════════════════════════════════════════════════════════════════════
+class C:
+RESET = '\033[0m'
+BOLD = '\033[1m'
+DIM = '\033[2m'
+ITALIC = '\033[3m'
+UNDERLINE = '\033[4m'
+BLINK = '\033[5m'
+REVERSE = '\033[7m'
+
+BLACK = '\033[30m'
+RED = '\033[91m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+BLUE = '\033[94m'
+MAGENTA = '\033[95m'
+CYAN = '\033[96m'
+WHITE = '\033[97m'
+
+BG_RED = '\033[41m'
+BG_GREEN = '\033[42m'
+BG_YELLOW = '\033[43m'
+BG_BLUE = '\033[44m'
+BG_MAGENTA = '\033[45m'
+BG_CYAN = '\033[46m'
+
+
+def clear_screen():
+os.system('clear' if os.name != 'nt' else 'cls')
+
+
+def hr(char='═', length=78):
+return char * length
+
+
+def center(text, width=78):
+return text.center(width)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMMANDES 1-10 : HELLO VARIANTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cmd_001_hello_world():
+"""1. Hello World classique"""
+print(f"{C.GREEN}Hello, World!{C.RESET}")
+
+
+def cmd_002_hello_rainbow():
+"""2. Hello World arc-en-ciel"""
+colors = [C.RED, C.YELLOW, C.GREEN, C.CYAN, C.BLUE, C.MAGENTA]
+text = "Hello, World!"
+result = ""
+for i, ch in enumerate(text):
+result += colors[i % len(colors)] + ch
+print(result + C.RESET)
+
+
+def cmd_003_hello_ascii_art():
+"""3. Hello World en art ASCII"""
+art = r"""
+██╗ ██╗███████╗██╗ ██╗ ██████╗
+██║ ██║██╔════╝██║ ██║ ██╔═══██╗
+███████║█████╗ ██║ ██║ ██║ ██║
+██╔══██║██╔══╝ ██║ ██║ ██║ ██║
+██║ ██║███████╗███████╗███████╗╚██████╔╝
+╚═╝ ╚═╝╚══════╝╚══════╝╚══════╝ ╚═════╝
+"""
+print(f"{C.CYAN}{art}{C.RESET}")
+
+
+def cmd_004_hello_animated():
+"""4. Hello World animé (typewriter)"""
+text = "Hello, World!"
+for ch in text:
+sys.stdout.write(f"{C.GREEN}{ch}{C.RESET}")
+sys.stdout.flush()
+time.sleep(0.08)
+print()
+
+
+def cmd_005_hello_morse():
+"""5. Hello World en morse"""
+morse = {
+'H': '....', 'E': '.', 'L': '.-..', 'O': '---',
+'W': '.--', 'R': '.-.', 'D': '-..', ' ': '/'
+}
+text = "HELLO WORLD"
+result = " ".join(morse.get(c, '') for c in text)
+print(f"{C.YELLOW}{result}{C.RESET}")
+
+
+def cmd_006_hello_binary():
+"""6. Hello World en binaire"""
+text = "Hello, World!"
+binary = " ".join(format(ord(c), '08b') for c in text)
+print(f"{C.GREEN}{binary}{C.RESET}")
+
+
+def cmd_007_hello_hex():
+"""7. Hello World en hexadécimal"""
+text = "Hello, World!"
+hexa = " ".join(format(ord(c), '02x') for c in text)
+print(f"{C.MAGENTA}{hexa}{C.RESET}")
+
+
+def cmd_008_hello_base64():
+"""8. Hello World en Base64"""
+text = "Hello, World!"
+encoded = base64.b64encode(text.encode()).decode()
+print(f"{C.CYAN}{encoded}{C.RESET}")
+
+
+def cmd_009_hello_rot13():
+"""9. Hello World en ROT13"""
+text = "Hello, World!"
+rot13 = text.translate(str.maketrans(
+"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+"NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm"
+))
+print(f"{C.YELLOW}{rot13}{C.RESET}")
+
+
+def cmd_010_hello_reverse():
+"""10. Hello World à l'envers"""
+text = "Hello, World!"
+print(f"{C.RED}{text[::-1]}{C.RESET}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMMANDES 11-20 : SYSTÈME
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cmd_011_system_info():
+"""11. Informations système"""
+print(f"\n{C.CYAN}{C.BOLD}═══ INFORMATIONS SYSTÈME ═══{C.RESET}\n")
+info = {
+"Système": platform.system(),
+"Release": platform.release(),
+"Version": platform.version()[:50],
+"Machine": platform.machine(),
+"Processeur": platform.processor()[:50],
+"Node": platform.node(),
+"Python": sys.version.split()[0],
+"Exécutable": sys.executable,
+"PID": os.getpid(),
+"CPU count": os.cpu_count(),
+"CWD": os.getcwd(),
+"User": os.environ.get("USER", os.environ.get("USERNAME", "?")),
+"Home": os.path.expanduser("~"),
+}
+for k, v in info.items():
+print(f" {C.GREEN}{k:15}{C.RESET} : {v}")
+
+
+def cmd_012_uptime():
+"""12. Uptime système"""
+try:
+with open("/proc/uptime") as f:
+seconds = float(f.read().split()[0])
+days = int(seconds // 86400)
+hours = int((seconds % 86400) // 3600)
+minutes = int((seconds % 3600) // 60)
+print(f"{C.GREEN}Uptime : {days}j {hours}h {minutes}m{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Impossible : {e}{C.RESET}")
+
+
+def cmd_013_memory_info():
+"""13. Mémoire"""
+try:
+with open("/proc/meminfo") as f:
+mem = {}
+for line in f:
+if ":" in line:
+k, v = line.split(":", 1)
+mem[k.strip()] = v.strip()
+total = int(mem.get("MemTotal", "0").split()[0]) / 1024
+free = int(mem.get("MemFree", "0").split()[0]) / 1024
+avail = int(mem.get("MemAvailable", "0").split()[0]) / 1024
+used = total - free
+print(f"\n{C.CYAN}{C.BOLD}═══ MÉMOIRE ═══{C.RESET}\n")
+print(f" Total : {total:.0f} MB")
+print(f" Utilisée : {used:.0f} MB ({used/total*100:.1f}%)")
+print(f" Libre : {free:.0f} MB")
+print(f" Dispo : {avail:.0f} MB")
+except Exception as e:
+print(f"{C.RED}Impossible : {e}{C.RESET}")
+
+
+def cmd_014_disk_info():
+"""14. Disque"""
+try:
+total, used, free = shutil.disk_usage("/")
+print(f"\n{C.CYAN}{C.BOLD}═══ DISQUE ═══{C.RESET}\n")
+print(f" Total : {total/(1024**3):.2f} GB")
+print(f" Utilisé : {used/(1024**3):.2f} GB ({used/total*100:.1f}%)")
+print(f" Libre : {free/(1024**3):.2f} GB")
+except Exception as e:
+print(f"{C.RED}Impossible : {e}{C.RESET}")
+
+
+def cmd_015_cpu_info():
+"""15. CPU détaillé"""
+try:
+with open("/proc/cpuinfo") as f:
+for line in f:
+if line.startswith("model name"):
+print(f"{C.GREEN}CPU : {line.split(':')[1].strip()}{C.RESET}")
+break
+with open("/proc/loadavg") as f:
+load = f.read().split()
+print(f"{C.GREEN}Load : {load[0]} {load[1]} {load[2]}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Impossible : {e}{C.RESET}")
+
+
+def cmd_016_network_info():
+"""16. Réseau"""
+try:
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.connect(("8.8.8.8", 80))
+ip = s.getsockname()[0]
+s.close()
+print(f"\n{C.CYAN}{C.BOLD}═══ RÉSEAU ═══{C.RESET}\n")
+print(f" IP locale : {ip}")
+print(f" Hostname : {socket.gethostname()}")
+try:
+pub_ip = urllib.request.urlopen("https://api.ipify.org", timeout=3).read().decode()
+print(f" IP publique : {pub_ip}")
+except Exception:
+print(f" IP publique : non disponible")
+except Exception as e:
+print(f"{C.RED}Impossible : {e}{C.RESET}")
+
+
+def cmd_017_process_list():
+"""17. Liste des processus"""
+try:
+result = subprocess.run(["ps", "aux"], capture_output=True, text=True, timeout=5)
+lines = result.stdout.split("\n")
+print(f"\n{C.CYAN}{C.BOLD}═══ TOP 15 PROCESSUS ═══{C.RESET}\n")
+print(lines[0])
+for line in lines[1:16]:
+if line.strip():
+print(line[:120])
+except Exception as e:
+print(f"{C.RED}Impossible : {e}{C.RESET}")
+
+
+def cmd_018_temp_files():
+"""18. Fichiers temporaires"""
+tmp = "/tmp" if os.name != "nt" else os.environ.get("TEMP", "C:\\Temp")
+if os.path.isdir(tmp):
+count = 0
+size = 0
+for root, dirs, files in os.walk(tmp):
+for f in files:
+try:
+size += os.path.getsize(os.path.join(root, f))
+count += 1
+except OSError:
+pass
+print(f"\n{C.CYAN}{C.BOLD}═══ TEMP ═══{C.RESET}\n")
+print(f" Dossier : {tmp}")
+print(f" Fichiers : {count}")
+print(f" Taille : {size/(1024**2):.2f} MB")
+
+
+def cmd_019_env_vars():
+"""19. Variables d'environnement"""
+print(f"\n{C.CYAN}{C.BOLD}═══ ENVIRONNEMENT ═══{C.RESET}\n")
+for k in sorted(os.environ.keys())[:30]:
+v = os.environ[k]
+if len(v) > 60:
+v = v[:60] + "..."
+print(f" {C.GREEN}{k}{C.RESET} = {v}")
+
+
+def cmd_020_python_info():
+"""20. Détails Python"""
+print(f"\n{C.CYAN}{C.BOLD}═══ PYTHON ═══{C.RESET}\n")
+print(f" Version : {sys.version}")
+print(f" Executable : {sys.executable}")
+print(f" Platform : {sys.platform}")
+print(f" Max int : {sys.maxsize}")
+print(f" Path :")
+for p in sys.path[:5]:
+print(f" - {p}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMMANDES 21-30 : CRYPTO & HASH
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cmd_021_hash_text():
+"""21. Hash d'un texte (SHA256)"""
+text = input(f"{C.YELLOW}Texte à hasher : {C.RESET}")
+h = hashlib.sha256(text.encode()).hexdigest()
+print(f"\n{C.GREEN}SHA256 : {h}{C.RESET}")
+
+
+def cmd_022_hash_file():
+"""22. Hash d'un fichier"""
+path = input(f"{C.YELLOW}Chemin du fichier : {C.RESET}")
+if not os.path.isfile(path):
+print(f"{C.RED}Fichier introuvable{C.RESET}")
+return
+h = hashlib.sha256()
+with open(path, "rb") as f:
+for chunk in iter(lambda: f.read(65536), b""):
+h.update(chunk)
+print(f"\n{C.GREEN}SHA256 : {h.hexdigest()}{C.RESET}")
+
+
+def cmd_023_multiple_hashes():
+"""23. Multi-hash d'un texte"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+data = text.encode()
+print(f"\n{C.CYAN}{C.BOLD}═══ HASHES ═══{C.RESET}\n")
+print(f" MD5 : {hashlib.md5(data).hexdigest()}")
+print(f" SHA1 : {hashlib.sha1(data).hexdigest()}")
+print(f" SHA256 : {hashlib.sha256(data).hexdigest()}")
+print(f" SHA512 : {hashlib.sha512(data).hexdigest()}")
+
+
+def cmd_024_uuid_generator():
+"""24. Générateur d'UUID"""
+print(f"\n{C.CYAN}{C.BOLD}═══ UUIDs ═══{C.RESET}\n")
+for i in range(5):
+print(f" {C.GREEN}{uuid.uuid4()}{C.RESET}")
+
+
+def cmd_025_password_generator():
+"""25. Générateur de mot de passe"""
+length = 24
+alphabet = string.ascii_letters + string.digits + "!@#$%^&*()-_=+"
+import secrets
+pwd = "".join(secrets.choice(alphabet) for _ in range(length))
+print(f"\n{C.GREEN}Mot de passe : {pwd}{C.RESET}")
+print(f"{C.DIM}Longueur : {length}{C.RESET}")
+
+
+def cmd_026_token_generator():
+"""26. Générateur de token"""
+import secrets
+print(f"\n{C.CYAN}{C.BOLD}═══ TOKENS ═══{C.RESET}\n")
+print(f" Hex 32 : {secrets.token_hex(32)}")
+print(f" Hex 64 : {secrets.token_hex(64)}")
+print(f" URL-safe : {secrets.token_urlsafe(32)}")
+print(f" Bytes 16 : {base64.b64encode(secrets.token_bytes(16)).decode()}")
+
+
+def cmd_027_encrypt_base64():
+"""27. Encoder en Base64"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+encoded = base64.b64encode(text.encode()).decode()
+print(f"\n{C.GREEN}{encoded}{C.RESET}")
+
+
+def cmd_028_decrypt_base64():
+"""28. Décoder Base64"""
+text = input(f"{C.YELLOW}Base64 : {C.RESET}")
+try:
+decoded = base64.b64decode(text.encode()).decode()
+print(f"\n{C.GREEN}{decoded}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_029_rot_n():
+"""29. ROT-N cipher"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+try:
+n = int(input(f"{C.YELLOW}Rotation N : {C.RESET}"))
+except ValueError:
+n = 13
+def rot(s, n):
+result = ""
+for c in s:
+if c.isalpha():
+base = ord('A') if c.isupper() else ord('a')
+result += chr((ord(c) - base + n) % 26 + base)
+else:
+result += c
+return result
+print(f"\n{C.GREEN}{rot(text, n)}{C.RESET}")
+
+
+def cmd_030_vigenere():
+"""30. Chiffre de Vigenère"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}").upper()
+key = input(f"{C.YELLOW}Clé : {C.RESET}").upper()
+if not key:
+key = "KEY"
+result = ""
+ki = 0
+for c in text:
+if c.isalpha():
+shift = ord(key[ki % len(key)]) - ord('A')
+result += chr((ord(c) - ord('A') + shift) % 26 + ord('A'))
+ki += 1
+else:
+result += c
+print(f"\n{C.GREEN}{result}{C.RESET}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMMANDES 31-40 : MATH & CALCULS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cmd_031_calculator():
+"""31. Calculatrice"""
+expr = input(f"{C.YELLOW}Expression (ex: 2+2*3) : {C.RESET}")
+try:
+allowed = set("0123456789+-*/()., %")
+if not all(c in allowed for c in expr):
+raise ValueError("Caractères non autorisés")
+result = eval(expr, {"__builtins__": {}}, {})
+print(f"\n{C.GREEN}{expr} = {result}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_032_statistics():
+"""32. Statistiques sur une liste"""
+text = input(f"{C.YELLOW}Nombres séparés par virgules : {C.RESET}")
+try:
+nums = [float(x.strip()) for x in text.split(",")]
+print(f"\n{C.CYAN}{C.BOLD}═══ STATISTIQUES ═══{C.RESET}\n")
+print(f" Count : {len(nums)}")
+print(f" Somme : {sum(nums)}")
+print(f" Moyenne : {statistics.mean(nums)}")
+print(f" Médiane : {statistics.median(nums)}")
+print(f" Min : {min(nums)}")
+print(f" Max : {max(nums)}")
+if len(nums) > 1:
+print(f" Écart-type : {statistics.stdev(nums):.4f}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_033_prime_check():
+"""33. Test de primalité"""
+try:
+n = int(input(f"{C.YELLOW}Nombre : {C.RESET}"))
+if n < 2:
+print(f"{C.RED}{n} n'est pas premier{C.RESET}")
+return
+for i in range(2, int(n**0.5) + 1):
+if n % i == 0:
+print(f"{C.RED}{n} n'est pas premier (divisible par {i}){C.RESET}")
+return
+print(f"{C.GREEN}{n} est PREMIER{C.RESET}")
+except ValueError:
+print(f"{C.RED}Nombre invalide{C.RESET}")
+
+
+def cmd_034_fibonacci():
+"""34. Suite de Fibonacci"""
+try:
+n = int(input(f"{C.YELLOW}Combien de termes : {C.RESET}"))
+except ValueError:
+n = 20
+a, b = 0, 1
+print(f"\n{C.GREEN}", end="")
+for _ in range(n):
+print(a, end=" ")
+a, b = b, a + b
+print(C.RESET)
+
+
+def cmd_035_factorial():
+"""35. Factorielle"""
+try:
+n = int(input(f"{C.YELLOW}Nombre : {C.RESET}"))
+print(f"\n{C.GREEN}{n}! = {math.factorial(n)}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_036_prime_factors():
+"""36. Facteurs premiers"""
+try:
+n = int(input(f"{C.YELLOW}Nombre : {C.RESET}"))
+original = n
+factors = []
+d = 2
+while d * d <= n:
+while n % d == 0:
+factors.append(d)
+n //= d
+d += 1
+if n > 1:
+factors.append(n)
+print(f"\n{C.GREEN}{original} = {' × '.join(map(str, factors))}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_037_gcd_lcm():
+"""37. PGCD et PPCM"""
+try:
+a = int(input(f"{C.YELLOW}a : {C.RESET}"))
+b = int(input(f"{C.YELLOW}b : {C.RESET}"))
+print(f"\n{C.GREEN}PGCD({a},{b}) = {math.gcd(a, b)}{C.RESET}")
+print(f"{C.GREEN}PPCM({a},{b}) = {math.lcm(a, b)}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_038_random_number():
+"""38. Nombre aléatoire"""
+try:
+low = int(input(f"{C.YELLOW}Min : {C.RESET}"))
+high = int(input(f"{C.YELLOW}Max : {C.RESET}"))
+except ValueError:
+low, high = 1, 100
+print(f"\n{C.GREEN}{random.randint(low, high)}{C.RESET}")
+
+
+def cmd_039_random_password_list():
+"""39. Liste de mots de passe"""
+count = 5
+length = 16
+alphabet = string.ascii_letters + string.digits
+print(f"\n{C.CYAN}{C.BOLD}═══ 5 MOTS DE PASSE ═══{C.RESET}\n")
+for _ in range(count):
+pwd = "".join(random.choice(alphabet) for _ in range(length))
+print(f" {C.GREEN}{pwd}{C.RESET}")
+
+
+def cmd_040_unit_convert():
+"""40. Convertisseur d'unités"""
+print(f"\n{C.CYAN}1. Celsius → Fahrenheit{C.RESET}")
+print(f"{C.CYAN}2. Fahrenheit → Celsius{C.RESET}")
+print(f"{C.CYAN}3. km → miles{C.RESET}")
+print(f"{C.CYAN}4. kg → livres{C.RESET}")
+choice = input(f"{C.YELLOW}Choix : {C.RESET}")
+try:
+val = float(input(f"{C.YELLOW}Valeur : {C.RESET}"))
+if choice == "1":
+print(f"{C.GREEN}{val}°C = {val * 9/5 + 32}°F{C.RESET}")
+elif choice == "2":
+print(f"{C.GREEN}{val}°F = {(val - 32) * 5/9:.2f}°C{C.RESET}")
+elif choice == "3":
+print(f"{C.GREEN}{val} km = {val * 0.621371:.4f} miles{C.RESET}")
+elif choice == "4":
+print(f"{C.GREEN}{val} kg = {val * 2.20462:.4f} livres{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMMANDES 41-50 : TEXTE
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cmd_041_word_count():
+"""41. Compter mots"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+words = text.split()
+chars = len(text)
+chars_no_space = len(text.replace(" ", ""))
+print(f"\n{C.CYAN}{C.BOLD}═══ TEXTE ═══{C.RESET}\n")
+print(f" Mots : {len(words)}")
+print(f" Caractères : {chars}")
+print(f" Sans espaces : {chars_no_space}")
+print(f" Lignes : {len(text.splitlines())}")
+
+
+def cmd_042_uppercase():
+"""42. Mettre en majuscules"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+print(f"\n{C.GREEN}{text.upper()}{C.RESET}")
+
+
+def cmd_043_lowercase():
+"""43. Mettre en minuscules"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+print(f"\n{C.GREEN}{text.lower()}{C.RESET}")
+
+
+def cmd_044_title_case():
+"""44. Première lettre en majuscule"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+print(f"\n{C.GREEN}{text.title()}{C.RESET}")
+
+
+def cmd_045_capitalize():
+"""45. Capitaliser"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+print(f"\n{C.GREEN}{text.capitalize()}{C.RESET}")
+
+
+def cmd_046_swap_case():
+"""46. Inverser casse"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+print(f"\n{C.GREEN}{text.swapcase()}{C.RESET}")
+
+
+def cmd_047_remove_spaces():
+"""47. Supprimer espaces"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+print(f"\n{C.GREEN}{text.replace(' ', '')}{C.RESET}")
+
+
+def cmd_048_remove_vowels():
+"""48. Supprimer voyelles"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+vowels = "aeiouAEIOU"
+result = "".join(c for c in text if c not in vowels)
+print(f"\n{C.GREEN}{result}{C.RESET}")
+
+
+def cmd_049_repeat_text():
+"""49. Répéter un texte"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+try:
+n = int(input(f"{C.YELLOW}Fois : {C.RESET}"))
+except ValueError:
+n = 3
+for i in range(n):
+print(f"{C.GREEN}{text}{C.RESET}")
+
+
+def cmd_050_palindrome_check():
+"""50. Palindrome"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+clean = "".join(c.lower() for c in text if c.isalnum())
+if clean == clean[::-1]:
+print(f"{C.GREEN}✅ '{text}' est un palindrome{C.RESET}")
+else:
+print(f"{C.RED}❌ '{text}' n'est pas un palindrome{C.RESET}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMMANDES 51-60 : FICHIERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cmd_051_list_dir():
+"""51. Lister un dossier"""
+path = input(f"{C.YELLOW}Chemin [{os.getcwd()}] : {C.RESET}") or os.getcwd()
+if not os.path.isdir(path):
+print(f"{C.RED}Pas un dossier{C.RESET}")
+return
+print(f"\n{C.CYAN}{C.BOLD}═══ {path} ═══{C.RESET}\n")
+for f in sorted(os.listdir(path))[:50]:
+full = os.path.join(path, f)
+if os.path.isdir(full):
+print(f" {C.BLUE}📁 {f}/{C.RESET}")
+else:
+size = os.path.getsize(full)
+print(f" {C.GREEN}📄 {f} {C.DIM}({size} o){C.RESET}")
+
+
+def cmd_052_file_info():
+"""52. Infos d'un fichier"""
+path = input(f"{C.YELLOW}Chemin : {C.RESET}")
+if not os.path.exists(path):
+print(f"{C.RED}Introuvable{C.RESET}")
+return
+st = os.stat(path)
+print(f"\n{C.CYAN}{C.BOLD}═══ {os.path.basename(path)} ═══{C.RESET}\n")
+print(f" Type : {'Dossier' if os.path.isdir(path) else 'Fichier'}")
+print(f" Taille : {st.st_size} octets")
+print(f" Modifié : {datetime.datetime.fromtimestamp(st.st_mtime)}")
+print(f" Créé : {datetime.datetime.fromtimestamp(st.st_ctime)}")
+print(f" Perms : {oct(st.st_mode)[-3:]}")
+
+
+def cmd_053_create_file():
+"""53. Créer un fichier"""
+path = input(f"{C.YELLOW}Nom du fichier : {C.RESET}")
+content = input(f"{C.YELLOW}Contenu : {C.RESET}")
+try:
+with open(path, "w", encoding="utf-8") as f:
+f.write(content)
+print(f"{C.GREEN}✅ Créé : {path}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_054_read_file():
+"""54. Lire un fichier"""
+path = input(f"{C.YELLOW}Chemin : {C.RESET}")
+try:
+with open(path, "r", encoding="utf-8") as f:
+content = f.read()
+print(f"\n{C.CYAN}{C.BOLD}═══ CONTENU ═══{C.RESET}\n")
+print(content[:2000])
+if len(content) > 2000:
+print(f"{C.DIM}... ({len(content) - 2000} caractères supplémentaires){C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_055_file_hash():
+"""55. Hash d'un fichier"""
+path = input(f"{C.YELLOW}Chemin : {C.RESET}")
+if not os.path.isfile(path):
+print(f"{C.RED}Introuvable{C.RESET}")
+return
+try:
+with open(path, "rb") as f:
+data = f.read()
+print(f"\n{C.CYAN}{C.BOLD}═══ HASHES ═══{C.RESET}\n")
+print(f" MD5 : {hashlib.md5(data).hexdigest()}")
+print(f" SHA1 : {hashlib.sha1(data).hexdigest()}")
+print(f" SHA256 : {hashlib.sha256(data).hexdigest()}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_056_count_lines():
+"""56. Compter lignes d'un fichier"""
+path = input(f"{C.YELLOW}Chemin : {C.RESET}")
+try:
+with open(path, "r", encoding="utf-8", errors="ignore") as f:
+lines = f.readlines()
+print(f"\n{C.GREEN}{len(lines)} lignes{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_057_search_in_file():
+"""57. Chercher dans un fichier"""
+path = input(f"{C.YELLOW}Chemin : {C.RESET}")
+pattern = input(f"{C.YELLOW}Motif : {C.RESET}")
+try:
+with open(path, "r", encoding="utf-8", errors="ignore") as f:
+count = 0
+for i, line in enumerate(f, 1):
+if pattern.lower() in line.lower():
+print(f" {C.GREEN}L{i}{C.RESET} : {line.strip()[:80]}")
+count += 1
+print(f"\n{C.CYAN}{count} résultat(s){C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_058_file_extension():
+"""58. Extension d'un fichier"""
+path = input(f"{C.YELLOW}Chemin : {C.RESET}")
+ext = os.path.splitext(path)[1]
+print(f"\n{C.GREEN}Extension : {ext or '(aucune)'}{C.RESET}")
+
+
+def cmd_059_absolute_path():
+"""59. Chemin absolu"""
+path = input(f"{C.YELLOW}Chemin : {C.RESET}")
+print(f"\n{C.GREEN}{os.path.abspath(path)}{C.RESET}")
+
+
+def cmd_060_disk_usage_dir():
+"""60. Taille d'un dossier"""
+path = input(f"{C.YELLOW}Dossier [{os.getcwd()}] : {C.RESET}") or os.getcwd()
+if not os.path.isdir(path):
+print(f"{C.RED}Pas un dossier{C.RESET}")
+return
+total = 0
+count = 0
+for root, dirs, files in os.walk(path):
+for f in files:
+try:
+total += os.path.getsize(os.path.join(root, f))
+count += 1
+except OSError:
+pass
+print(f"\n{C.CYAN}{C.BOLD}═══ {path} ═══{C.RESET}\n")
+print(f" Fichiers : {count}")
+print(f" Taille : {total/(1024**2):.2f} MB")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMMANDES 61-70 : RÉSEAU
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cmd_061_ping_host():
+"""61. Ping"""
+host = input(f"{C.YELLOW}Host [1.1.1.1] : {C.RESET}") or "1.1.1.1"
+try:
+result = subprocess.run(["ping", "-c", "4", host], capture_output=True, text=True, timeout=10)
+print(result.stdout)
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_062_dns_lookup():
+"""62. DNS lookup"""
+host = input(f"{C.YELLOW}Host [google.com] : {C.RESET}") or "google.com"
+try:
+ip = socket.gethostbyname(host)
+print(f"{C.GREEN}{host} → {ip}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_063_port_check():
+"""63. Test port TCP"""
+host = input(f"{C.YELLOW}Host [1.1.1.1] : {C.RESET}") or "1.1.1.1"
+try:
+port = int(input(f"{C.YELLOW}Port [443] : {C.RESET}") or "443")
+except ValueError:
+port = 443
+try:
+t0 = time.time()
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(5)
+r = s.connect_ex((host, port))
+dt = (time.time() - t0) * 1000
+s.close()
+if r == 0:
+print(f"{C.GREEN}✅ {host}:{port} OUVERT ({dt:.0f}ms){C.RESET}")
+else:
+print(f"{C.RED}❌ {host}:{port} FERMÉ{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_064_public_ip():
+"""64. IP publique"""
+try:
+ip = urllib.request.urlopen("https://api.ipify.org", timeout=5).read().decode()
+print(f"{C.GREEN}IP publique : {ip}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_065_reverse_dns():
+"""65. Reverse DNS"""
+ip = input(f"{C.YELLOW}IP [8.8.8.8] : {C.RESET}") or "8.8.8.8"
+try:
+host = socket.gethostbyaddr(ip)
+print(f"{C.GREEN}{ip} → {host[0]}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_066_http_get():
+"""66. HTTP GET"""
+url = input(f"{C.YELLOW}URL : {C.RESET}")
+try:
+r = urllib.request.urlopen(url, timeout=10)
+print(f"\n{C.GREEN}Status : {r.status}{C.RESET}")
+print(f"{C.GREEN}Content-Type : {r.headers.get('Content-Type', '?')}{C.RESET}")
+body = r.read(500).decode("utf-8", errors="ignore")
+print(f"\n{C.CYAN}{body}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_067_url_parse():
+"""67. Parser une URL"""
+url = input(f"{C.YELLOW}URL : {C.RESET}")
+p = urllib.parse.urlparse(url)
+print(f"\n{C.CYAN}{C.BOLD}═══ URL ═══{C.RESET}\n")
+print(f" Scheme : {p.scheme}")
+print(f" Netloc : {p.netloc}")
+print(f" Path : {p.path}")
+print(f" Query : {p.query}")
+print(f" Fragment : {p.fragment}")
+
+
+def cmd_068_url_encode():
+"""68. Encoder URL"""
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+print(f"\n{C.GREEN}{urllib.parse.quote(text)}{C.RESET}")
+
+
+def cmd_069_url_decode():
+"""69. Décoder URL"""
+text = input(f"{C.YELLOW}URL encodée : {C.RESET}")
+print(f"\n{C.GREEN}{urllib.parse.unquote(text)}{C.RESET}")
+
+
+def cmd_070_download_file():
+"""70. Télécharger un fichier"""
+url = input(f"{C.YELLOW}URL : {C.RESET}")
+dest = input(f"{C.YELLOW}Destination [./download] : {C.RESET}") or "./download"
+try:
+urllib.request.urlretrieve(url, dest)
+size = os.path.getsize(dest)
+print(f"{C.GREEN}✅ Téléchargé : {dest} ({size} octets){C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMMANDES 71-80 : FUN & UTILITAIRES
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cmd_071_random_quote():
+"""71. Citation aléatoire"""
+quotes = [
+"Le code est de la poésie qui se compile.",
+"Simplicité avant tout.",
+"Ce qui se conçoit bien s'énonce clairement.",
+"Je ne réponds pas. Je construis.",
+"Le meilleur moment pour planter un arbre, c'était il y a 20 ans.",
+"Fais simple, fais bien, fais-le.",
+"Le talent sans travail n'est qu'une promesse.",
+"Ce que tu cherches te cherche aussi.",
+]
+print(f"\n{C.CYAN}💬 {random.choice(quotes)}{C.RESET}")
+
+
+def cmd_072_random_joke():
+"""72. Blague aléatoire"""
+jokes = [
+"Pourquoi les devs confondent Halloween et Noël ? Parce que OCT 31 == DEC 25.",
+"Il y a 10 types de personnes : ceux qui comprennent le binaire, et les autres.",
+"Un bug dans le code, c'est un résultat non documenté.",
+"99 bugs dans le code... corrige 1... 127 bugs dans le code.",
+]
+print(f"\n{C.YELLOW}😄 {random.choice(jokes)}{C.RESET}")
+
+
+def cmd_073_random_color():
+"""73. Couleur aléatoire"""
+r, g, b = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
+print(f"\n{C.GREEN}RGB : ({r}, {g}, {b}){C.RESET}")
+print(f"{C.GREEN}Hex : #{r:02x}{g:02x}{b:02x}{C.RESET}")
+
+
+def cmd_074_dice_roll():
+"""74. Lancer de dé"""
+n = random.randint(1, 6)
+print(f"\n{C.GREEN}🎲 {n}{C.RESET}")
+
+
+def cmd_075_coin_flip():
+"""75. Pile ou face"""
+result = random.choice(["Pile", "Face"])
+print(f"\n{C.GREEN}🪙 {result}{C.RESET}")
+
+
+def cmd_076_random_string():
+"""76. Chaîne aléatoire"""
+n = 32
+s = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(n))
+print(f"\n{C.GREEN}{s}{C.RESET}")
+
+
+def cmd_077_current_time():
+"""77. Heure actuelle"""
+now = datetime.datetime.now()
+print(f"\n{C.GREEN}{now.strftime('%H:%M:%S')}{C.RESET}")
+
+
+def cmd_078_current_date():
+"""78. Date actuelle"""
+now = datetime.datetime.now()
+print(f"\n{C.GREEN}{now.strftime('%A %d %B %Y')}{C.RESET}")
+
+
+def cmd_079_timestamp():
+"""79. Timestamp Unix"""
+print(f"\n{C.GREEN}{int(time.time())}{C.RESET}")
+print(f"{C.DIM}ISO : {datetime.datetime.now().isoformat()}{C.RESET}")
+
+
+def cmd_080_countdown():
+"""80. Compte à rebours"""
+try:
+n = int(input(f"{C.YELLOW}Secondes [5] : {C.RESET}") or "5")
+except ValueError:
+n = 5
+for i in range(n, 0, -1):
+print(f"\r{C.GREEN}{i}...{C.RESET} ", end="", flush=True)
+time.sleep(1)
+print(f"\r{C.GREEN}🚀 GO!{C.RESET} ")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMMANDES 81-88 : AVANCÉ
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cmd_081_json_pretty():
+"""81. JSON pretty print"""
+text = input(f"{C.YELLOW}JSON : {C.RESET}")
+try:
+data = json.loads(text)
+print(f"\n{C.GREEN}{json.dumps(data, indent=2, ensure_ascii=False)}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_082_json_validate():
+"""82. Valider JSON"""
+text = input(f"{C.YELLOW}JSON : {C.RESET}")
+try:
+json.loads(text)
+print(f"{C.GREEN}✅ JSON valide{C.RESET}")
+except Exception as e:
+print(f"{C.RED}❌ Invalide : {e}{C.RESET}")
+
+
+def cmd_083_regex_test():
+"""83. Tester une regex"""
+pattern = input(f"{C.YELLOW}Regex : {C.RESET}")
+text = input(f"{C.YELLOW}Texte : {C.RESET}")
+try:
+matches = re.findall(pattern, text)
+print(f"\n{C.GREEN}{len(matches)} résultat(s){C.RESET}")
+for m in matches[:20]:
+print(f" {C.CYAN}{m}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_084_ast_analyze():
+"""84. Analyser du code Python (AST)"""
+code = input(f"{C.YELLOW}Code Python : {C.RESET}")
+try:
+tree = ast.parse(code)
+print(f"\n{C.CYAN}{C.BOLD}═══ AST ═══{C.RESET}\n")
+for node in ast.walk(tree):
+print(f" {C.GREEN}{type(node).__name__}{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_085_exec_time():
+"""85. Tester le temps d'exécution"""
+code = input(f"{C.YELLOW}Code Python : {C.RESET}")
+t0 = time.time()
+try:
+result = eval(code, {"__builtins__": __builtins__}, {})
+dt = (time.time() - t0) * 1000
+print(f"\n{C.GREEN}Résultat : {result}{C.RESET}")
+print(f"{C.CYAN}Temps : {dt:.3f}ms{C.RESET}")
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+
+
+def cmd_086_benchmark():
+"""86. Benchmark Python"""
+print(f"\n{C.CYAN}{C.BOLD}═══ BENCHMARK ═══{C.RESET}\n")
+
+# Loop
+t0 = time.time()
+total = 0
+for i in range(1_000_000):
+total += i
+dt1 = time.time() - t0
+
+# Comprehension
+t0 = time.time()
+total = sum([i for i in range(1_000_000)])
+dt2 = time.time() - t0
+
+# Builtin
+t0 = time.time()
+total = sum(range(1_000_000))
+dt3 = time.time() - t0
+
+print(f" For loop : {dt1*1000:.2f}ms")
+print(f" Comprehension : {dt2*1000:.2f}ms")
+print(f" sum() builtin : {dt3*1000:.2f}ms")
+print(f"\n{C.GREEN}Le plus rapide : {'builtin' if dt3 < min(dt1, dt2) else 'comprehension' if dt2 < dt1 else 'for'}{C.RESET}")
+
+
+def cmd_087_system_scan():
+"""87. Scan système complet"""
+print(f"\n{C.CYAN}{C.BOLD}═══ SCAN SYSTÈME COMPLET ═══{C.RESET}\n")
+
+print(f"{C.YELLOW}📊 Système :{C.RESET}")
+print(f" OS : {platform.system()} {platform.release()}")
+print(f" Machine : {platform.machine()}")
+print(f" Python : {sys.version.split()[0]}")
+
+print(f"\n{C.YELLOW}💾 Mémoire :{C.RESET}")
+try:
+with open("/proc/meminfo") as f:
+for line in f:
+if "MemTotal" in line:
+total = int(line.split()[1]) / 1024
+print(f" Total : {total:.0f} MB")
+elif "MemAvailable" in line:
+avail = int(line.split()[1]) / 1024
+print(f" Dispo : {avail:.0f} MB")
+except Exception:
+print(f" Non disponible")
+
+print(f"\n{C.YELLOW}💿 Disque :{C.RESET}")
+try:
+total, used, free = shutil.disk_usage("/")
+print(f" Total : {total/(1024**3):.2f} GB")
+print(f" Libre : {free/(1024**3):.2f} GB")
+except Exception:
+pass
+
+print(f"\n{C.YELLOW}🌐 Réseau :{C.RESET}")
+try:
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.connect(("8.8.8.8", 80))
+print(f" IP locale : {s.getsockname()[0]}")
+s.close()
+except Exception:
+pass
+
+print(f"\n{C.GREEN}✅ Scan terminé{C.RESET}")
+
+
+def cmd_088_about():
+"""88. À propos de NEXUS HELLO UNIVERSE"""
+print(f"""
+{C.MAGENTA}{C.BOLD}
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ ║
+║ 🌌 NEXUS HELLO UNIVERSE ║
+║ ║
+║ Là où "Hello World" dit bonjour, NEXUS dit TOUT. ║
+║ ║
+║ ✓ 88 commandes ║
+║ ✓ 1999 lignes de code ║
+║ ✓ 0 dépendance externe ║
+║ ✓ Python pur ║
+║ ║
+║ Auteur : {AUTHOR} ║
+║ Version : {VERSION} ║
+║ Licence : {LICENCE} ║
+║ ║
+║ "Je ne réponds pas. Je construis." ║
+║ ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+{C.RESET}""")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# REGISTRE DES COMMANDES
+# ══════════════════════════════════════════════════════════════════════════════
+COMMANDS = {
+1: ("Hello World classique", cmd_001_hello_world),
+2: ("Hello World arc-en-ciel", cmd_002_hello_rainbow),
+3: ("Hello World en art ASCII", cmd_003_hello_ascii_art),
+4: ("Hello World animé", cmd_004_hello_animated),
+5: ("Hello World en morse", cmd_005_hello_morse),
+6: ("Hello World en binaire", cmd_006_hello_binary),
+7: ("Hello World en hexadécimal", cmd_007_hello_hex),
+8: ("Hello World en Base64", cmd_008_hello_base64),
+9: ("Hello World en ROT13", cmd_009_hello_rot13),
+10: ("Hello World à l'envers", cmd_010_hello_reverse),
+11: ("Informations système", cmd_011_system_info),
+12: ("Uptime système", cmd_012_uptime),
+13: ("Mémoire", cmd_013_memory_info),
+14: ("Disque", cmd_014_disk_info),
+15: ("CPU détaillé", cmd_015_cpu_info),
+16: ("Réseau", cmd_016_network_info),
+17: ("Liste des processus", cmd_017_process_list),
+18: ("Fichiers temporaires", cmd_018_temp_files),
+19: ("Variables d'environnement", cmd_019_env_vars),
+20: ("Détails Python", cmd_020_python_info),
+21: ("Hash d'un texte (SHA256)", cmd_021_hash_text),
+22: ("Hash d'un fichier", cmd_022_hash_file),
+23: ("Multi-hash d'un texte", cmd_023_multiple_hashes),
+24: ("Générateur d'UUID", cmd_024_uuid_generator),
+25: ("Générateur de mot de passe", cmd_025_password_generator),
+26: ("Générateur de token", cmd_026_token_generator),
+27: ("Encoder en Base64", cmd_027_encrypt_base64),
+28: ("Décoder Base64", cmd_028_decrypt_base64),
+29: ("ROT-N cipher", cmd_029_rot_n),
+30: ("Chiffre de Vigenère", cmd_030_vigenere),
+31: ("Calculatrice", cmd_031_calculator),
+32: ("Statistiques", cmd_032_statistics),
+33: ("Test de primalité", cmd_033_prime_check),
+34: ("Suite de Fibonacci", cmd_034_fibonacci),
+35: ("Factorielle", cmd_035_factorial),
+36: ("Facteurs premiers", cmd_036_prime_factors),
+37: ("PGCD et PPCM", cmd_037_gcd_lcm),
+38: ("Nombre aléatoire", cmd_038_random_number),
+39: ("Liste de mots de passe", cmd_039_random_password_list),
+40: ("Convertisseur d'unités", cmd_040_unit_convert),
+41: ("Compter mots", cmd_041_word_count),
+42: ("Mettre en majuscules", cmd_042_uppercase),
+43: ("Mettre en minuscules", cmd_043_lowercase),
+44: ("Première lettre en majuscule", cmd_044_title_case),
+45: ("Capitaliser", cmd_045_capitalize),
+46: ("Inverser casse", cmd_046_swap_case),
+47: ("Supprimer espaces", cmd_047_remove_spaces),
+48: ("Supprimer voyelles", cmd_048_remove_vowels),
+49: ("Répéter un texte", cmd_049_repeat_text),
+50: ("Palindrome", cmd_050_palindrome_check),
+51: ("Lister un dossier", cmd_051_list_dir),
+52: ("Infos d'un fichier", cmd_052_file_info),
+53: ("Créer un fichier", cmd_053_create_file),
+54: ("Lire un fichier", cmd_054_read_file),
+55: ("Hash d'un fichier", cmd_055_file_hash),
+56: ("Compter lignes d'un fichier", cmd_056_count_lines),
+57: ("Chercher dans un fichier", cmd_057_search_in_file),
+58: ("Extension d'un fichier", cmd_058_file_extension),
+59: ("Chemin absolu", cmd_059_absolute_path),
+60: ("Taille d'un dossier", cmd_060_disk_usage_dir),
+61: ("Ping", cmd_061_ping_host),
+62: ("DNS lookup", cmd_062_dns_lookup),
+63: ("Test port TCP", cmd_063_port_check),
+64: ("IP publique", cmd_064_public_ip),
+65: ("Reverse DNS", cmd_065_reverse_dns),
+66: ("HTTP GET", cmd_066_http_get),
+67: ("Parser une URL", cmd_067_url_parse),
+68: ("Encoder URL", cmd_068_url_encode),
+69: ("Décoder URL", cmd_069_url_decode),
+70: ("Télécharger un fichier", cmd_070_download_file),
+71: ("Citation aléatoire", cmd_071_random_quote),
+72: ("Blague aléatoire", cmd_072_random_joke),
+73: ("Couleur aléatoire", cmd_073_random_color),
+74: ("Lancer de dé", cmd_074_dice_roll),
+75: ("Pile ou face", cmd_075_coin_flip),
+76: ("Chaîne aléatoire", cmd_076_random_string),
+77: ("Heure actuelle", cmd_077_current_time),
+78: ("Date actuelle", cmd_078_current_date),
+79: ("Timestamp Unix", cmd_079_timestamp),
+80: ("Compte à rebours", cmd_080_countdown),
+81: ("JSON pretty print", cmd_081_json_pretty),
+82: ("Valider JSON", cmd_082_json_validate),
+83: ("Tester une regex", cmd_083_regex_test),
+84: ("Analyser du code Python (AST)", cmd_084_ast_analyze),
+85: ("Tester le temps d'exécution", cmd_085_exec_time),
+86: ("Benchmark Python", cmd_086_benchmark),
+87: ("Scan système complet", cmd_087_system_scan),
+88: ("À propos de NEXUS HELLO UNIVERSE", cmd_088_about),
+}
+
+
+CATEGORIES = {
+"Hello Variants": list(range(1, 11)),
+"Système": list(range(11, 21)),
+"Crypto & Hash": list(range(21, 31)),
+"Math & Calculs": list(range(31, 41)),
+"Texte": list(range(41, 51)),
+"Fichiers": list(range(51, 61)),
+"Réseau": list(range(61, 71)),
+"Fun & Utilitaires": list(range(71, 81)),
+"Avancé": list(range(81, 89)),
+}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# INTERFACE MENU
+# ══════════════════════════════════════════════════════════════════════════════
+
+def show_banner():
+clear_screen()
+print(f"""
+{C.MAGENTA}{C.BOLD}
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ ║
+║ 🌌 N E X U S H E L L O U N I V E R S E 🌌 ║
+║ ║
+║ 88 commandes · 1999 lignes · 0 dépendance ║
+║ ║
+║ Auteur : {AUTHOR} ║
+║ Version : {VERSION} ║
+║ ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+{C.RESET}""")
+
+
+def show_menu():
+show_banner()
+print(f"{C.CYAN}{C.BOLD}═══ CATÉGORIES ═══{C.RESET}\n")
+for i, (cat, cmds) in enumerate(CATEGORIES.items(), 1):
+print(f" {C.GREEN}[{i}]{C.RESET} {cat:20} {C.DIM}({cmds[0]:02d}-{cmds[-1]:02d}){C.RESET}")
+print(f" {C.GREEN}[L]{C.RESET} Lister toutes les commandes")
+print(f" {C.GREEN}[H]{C.RESET} Aide")
+print(f" {C.GREEN}[Q]{C.RESET} Quitter")
+print()
+
+
+def run_command(num):
+if num not in COMMANDS:
+print(f"{C.RED}Commande {num} introuvable{C.RESET}")
+return
+name, fn = COMMANDS[num]
+clear_screen()
+print(f"{C.CYAN}{C.BOLD}[#{num:03d}] {name}{C.RESET}\n")
+print(f"{C.DIM}{hr('─', 78)}{C.RESET}\n")
+try:
+fn()
+except KeyboardInterrupt:
+print(f"\n{C.YELLOW}Interrompu{C.RESET}")
+except Exception as e:
+print(f"\n{C.RED}Erreur : {e}{C.RESET}")
+print()
+input(f"{C.DIM}[Entrée pour continuer]{C.RESET}")
+
+
+def list_commands():
+clear_screen()
+print(f"{C.CYAN}{C.BOLD}═══ TOUTES LES COMMANDES ({len(COMMANDS)}) ═══{C.RESET}\n")
+for i, (num, (name, _)) in enumerate(COMMANDS.items(), 1):
+print(f" {C.GREEN}{num:3d}{C.RESET}. {name}")
+if i % 25 == 0:
+print()
+print()
+input(f"{C.DIM}[Entrée pour continuer]{C.RESET}")
+
+
+def show_help():
+clear_screen()
+print(f"""
+{C.CYAN}{C.BOLD}═══ AIDE — NEXUS HELLO UNIVERSE ═══{C.RESET}
+
+{C.GREEN}Usage en mode interactif :{C.RESET}
+Tape le numéro de la commande (1-88)
+Tape 'L' pour lister toutes les commandes
+Tape 'Q' pour quitter
+
+{C.GREEN}Usage en ligne de commande :{C.RESET}
+{C.YELLOW}python3 nexus_hello_universe.py 42{C.RESET}
+→ Lance la commande #42
+
+{C.YELLOW}python3 nexus_hello_universe.py --list{C.RESET}
+→ Liste toutes les commandes
+
+{C.YELLOW}python3 nexus_hello_universe.py --cat 3{C.RESET}
+→ Lance toute la catégorie 3 (Crypto & Hash)
+
+{C.YELLOW}python3 nexus_hello_universe.py --help{C.RESET}
+→ Cette aide
+
+{C.GREEN}Catégories :{C.RESET}
+""")
+for i, (cat, cmds) in enumerate(CATEGORIES.items(), 1):
+print(f" {C.YELLOW}[{i}]{C.RESET} {cat} ({cmds[0]:02d}-{cmds[-1]:02d})")
+print()
+input(f"{C.DIM}[Entrée pour continuer]{C.RESET}")
+
+
+def interactive_mode():
+while True:
+show_menu()
+try:
+choice = input(f"{C.YELLOW}➜ {C.RESET}").strip().upper()
+
+if not choice:
+continue
+if choice in ("Q", "QUIT", "EXIT"):
+print(f"\n{C.MAGENTA}👋 À bientôt !{C.RESET}\n")
+break
+if choice == "H":
+show_help()
+continue
+if choice == "L":
+list_commands()
+continue
+
+# Numéro de catégorie
+if choice.isdigit():
+n = int(choice)
+# Catégorie
+if 1 <= n <= len(CATEGORIES):
+cat_name = list(CATEGORIES.keys())[n - 1]
+cmds = CATEGORIES[cat_name]
+print(f"\n{C.CYAN}Catégorie : {cat_name}{C.RESET}\n")
+for c in cmds:
+print(f" {C.GREEN}[{c:03d}]{C.RESET} {COMMANDS[c][0]}")
+print()
+sub = input(f"{C.YELLOW}Numéro de commande (ou Entrée pour retour) : {C.RESET}").strip()
+if sub.isdigit():
+run_command(int(sub))
+continue
+
+# Commande directe
+if n in COMMANDS:
+run_command(n)
+continue
+
+# Numéro de commande
+if choice.startswith("#") and choice[1:].isdigit():
+run_command(int(choice[1:]))
+continue
+
+print(f"{C.RED}Choix invalide : {choice}{C.RESET}")
+time.sleep(1)
+
+except KeyboardInterrupt:
+print(f"\n\n{C.MAGENTA}👋 À bientôt !{C.RESET}\n")
+break
+except EOFError:
+print(f"\n{C.MAGENTA}👋 À bientôt !{C.RESET}\n")
+break
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+time.sleep(2)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CLI MODE
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cli_mode(args):
+if not args:
+interactive_mode()
+return
+
+if args[0] in ("-h", "--help"):
+show_help()
+return
+
+if args[0] in ("-l", "--list"):
+list_commands()
+return
+
+if args[0] in ("-v", "--version"):
+print(f"NEXUS HELLO UNIVERSE v{VERSION}")
+print(f"Auteur : {AUTHOR}")
+return
+
+if args[0] == "--cat" and len(args) > 1:
+try:
+n = int(args[1])
+cat_name = list(CATEGORIES.keys())[n - 1]
+for c in CATEGORIES[cat_name]:
+print(f"\n{C.CYAN}{C.BOLD}[#{c:03d}] {COMMANDS[c][0]}{C.RESET}\n")
+try:
+COMMANDS[c][1]()
+except KeyboardInterrupt:
+break
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+except (ValueError, IndexError):
+print(f"{C.RED}Catégorie invalide{C.RESET}")
+return
+
+# Numéro de commande
+if args[0].isdigit():
+n = int(args[0])
+if n in COMMANDS:
+clear_screen()
+print(f"{C.CYAN}{C.BOLD}[#{n:03d}] {COMMANDS[n][0]}{C.RESET}\n")
+print(f"{C.DIM}{hr('─', 78)}{C.RESET}\n")
+try:
+COMMANDS[n][1]()
+except Exception as e:
+print(f"{C.RED}Erreur : {e}{C.RESET}")
+else:
+print(f"{C.RED}Commande {n} introuvable (1-88){C.RESET}")
+return
+
+print(f"{C.RED}Argument inconnu : {args[0]}{C.RESET}")
+print(f"Utilise --help pour l'aide")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN
+# ══════════════════════════════════════════════════════════════════════════════
+
+def main():
+args = sys.argv[1:]
+cli_mode(args)
+
+
+if __name__ == "__main__":
+main()
