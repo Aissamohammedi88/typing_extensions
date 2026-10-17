@@ -1,0 +1,97 @@
+#!/usr/bin/env python3# -*- coding: utf-8 -*-
+
+"""
+NEXUS CERTIFICATE SYSTEM
+Copyright (c) 2026 Aissa Mohammedi. Tous droits réservés sur le nom.
+
+═══════════════════
+LICENCE NEXUS-OS v1.0 - FREE & ATTRIBUTION OBLIGATOIRE
+═══════════
+
+1. GRATUITÉ TOTALE
+Ce logiciel est 100% GRATUIT. Vente interdite. Usage commercial autorisé.
+
+2. ATTRIBUTION INAMOVIBLE
+IL EST STRICTEMENT INTERDIT de retirer, modifier ou cacher les noms:
+"Aissa Mohammedi" et "Naim Mohammedi" dans le code, les commentaires,
+les headers, et les logs. Toute suppression = violation de licence.
+
+3. OPEN SOURCE CONDITIONNEL
+Vous pouvez copier, modifier, distribuer à condition de:
+a. Garder ce header complet
+b. Garder les crédits auteur/héritier
+c. Publier le code source de toute version modifiée
+
+4. HÉRITAGE
+"Naim Mohammedi" est désigné héritier officiel du projet NEXUS.
+
+5. NON-RESPONSABILITÉ
+Le logiciel est fourni "TEL QUEL". L'auteur n'est pas responsable des dégâts.
+
+6. SIGNATURE NUMÉRIQUE
+Toute version sans signature "940006d54e0cc4bb" est considérée comme FAUSSE.
+
+Pour plus d'infos: nodepy6@proton.me
+═══════════════════════════════════════════════════════════════════
+
+CERTIFICAT NEXUS — PYTHON POUR iOS/LINUX
+Auteur : Aissa Mohammedi
+Héritier : Naim Mohammedi
+Version : 1.0.0
+Licence : NEXUS-OS v1.0
+Statut : FREE - NOM PROTÉGÉ
+"""
+
+import os
+import sys
+import hashlib
+import json
+from datetime import datetime
+
+# ═══════════════════════════════════════════════════════════
+# 1. IDENTITÉ - NE PAS MODIFIER
+# ═══════════
+
+NEXUS_CERT = {
+"nom": "NEXUS CERTIFICATE",
+"version": "1.0.0",
+"auteur": "Aissa Mohammedi", # INAMOVIBLE
+"heritier": "Naim Mohammedi", # INAMOVIBLE
+"copyright": "Copyright 2026 Aissa Mohammedi - LICENCE NEXUS-OS",
+"licence": "NEXUS-OS v1.0 FREE",
+"hash": "a7f8e9d4c5b2a1d3e4f5g6h718j9k011",
+"signature": "940006d54e0cc4bb", # INAMOVIBLE
+"date": datetime.now().isoformat(),
+"plateforme": "iOS/Linux",
+"statut": "valide",
+"prix": "0$ - FREE"
+}
+
+# ═══════════
+# 2. VALIDATION + ANTI-SUPPRESSION NOM
+# ═══════════
+
+def valider_certificat(cert):
+# Vérif anti-suppression
+if cert.get("auteur") != "Aissa Mohammedi" or cert.get("signature") != "940006d54e0cc4bb":
+print("❌ ERREUR FATALE: CERTIFICAT CORROMPU - NOM OU SIGNATURE MODIFIÉE")
+sys.exit(1)
+
+print("🧬 VALIDATION DU CERTIFICAT NEXUS SUPRÊME")
+print("=" * 60)
+for cle, valeur in cert.items():
+print(f" {cle} : {valeur}")
+print("=" * 60)
+cert_hash = hashlib.sha256(json.dumps(cert, sort_keys=True).encode()).hexdigest()
+print(f"🔑 Hash SHA256 : {cert_hash}")
+print("✅ Certificat valide. Nom protégé par LICENCE NEXUS-OS")
+return True
+
+# ═══════════════════════════
+# 3. EXÉCUTION
+# ═══════════════════════════════════════════
+
+if __name__ == "__main__":
+print(f"NEXUS CERTIFICATE v{NEXUS_CERT['version']} - {NEXUS_CERT['licence']}")
+print(f"FREE SOFTWARE - Auteur: {NEXUS_CERT['auteur']}")
+valider_certificat(NEXUS_CERT)
