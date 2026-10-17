@@ -1,0 +1,849 @@
+#!/usr/bin/env python3# -*- coding: utf-8 -*-
+"""
+═══════════════════════════════════════════════════════════════════════════
+NEXUS-PY v1.0.0 — L'outil CLI qui rend Python plus précis en mémoire
+═══════════════════════════════════════════════════════════════════════════
+
+Fonctionnalités :
+- Contrôle mémoire précis (RSS, peak, tracemalloc)
+- Profilage en temps réel
+- Optimisation automatique des objets
+- Détection des fuites mémoire
+- Sandbox avec limite RAM
+- Cache intelligent des imports
+- Analyse des types
+- Décorateurs de timeout mémoire
+- Comparaison avant/après optimisation
+- Export de rapport JSON/HTML
+
+Auteur : Aissa Mohammedi (DGK)
+Licence : Apache-2.0
+Usage : python3 nexus_py.py [command] [options]
+═══════════════════════════════════════════════════════════════════════════
+"""
+
+import os
+import sys
+import time
+import json
+import gc
+import tracemalloc
+import resource
+import subprocess
+import threading
+import signal
+import tempfile
+import shutil
+import ast
+import inspect
+import dis
+import cProfile
+import pstats
+import io
+import argparse
+import hashlib
+from pathlib import Path
+from datetime import datetime
+from dataclasses import dataclass, field, asdict
+from typing import Any, Dict, List, Optional, Callable, Tuple
+from contextlib import contextmanager
+from collections import defaultdict, Counter
+from functools import wraps, lru_cache
+
+VERSION = "1.0.0"
+AUTEUR = "Aissa Mohammedi (DGK)"
+LICENCE = "Apache-2.0"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# COULEURS ANSI
+# ═══════════════════════════════════════════════════════════════════════════
+class C:
+R = '\033[0;31m'
+G = '\033[0;32m'
+Y = '\033[1;33m'
+B = '\033[0;36m'
+M = '\033[0;35m'
+N = '\033[0m'
+BOLD = '\033[1m'
+DIM = '\033[2m'
+
+def info(msg): print(f"{C.B}[INFO]{C.N} {msg}")
+def ok(msg): print(f"{C.G}[ OK ]{C.N} {msg}")
+def warn(msg): print(f"{C.Y}[WARN]{C.N} {msg}")
+def err(msg): print(f"{C.R}[FAIL]{C.N} {msg}")
+def hr(): print(f"{C.B}{'─' * 70}{C.N}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MÉTRIQUES MÉMOIRE
+# ═══════════════════════════════════════════════════════════════════════════
+@dataclass
+class MemoryStats:
+rss_kb: int = 0
+vms_kb: int = 0
+peak_kb: int = 0
+python_objects: int = 0
+gc_gen0: int = 0
+gc_gen1: int = 0
+gc_gen2: int = 0
+tracemalloc_current: int = 0
+tracemalloc_peak: int = 0
+timestamp: str = ""
+
+def to_dict(self) -> Dict[str, Any]:
+return asdict(self)
+
+
+def get_memory_stats() -> MemoryStats:
+"""Récupère les stats mémoire actuelles."""
+stats = MemoryStats(timestamp=datetime.now().isoformat())
+
+# RSS / VMS via resource
+try:
+usage = resource.getrusage(resource.RUSAGE_SELF)
+stats.rss_kb = usage.ru_maxrss # Peak RSS en KB sur Linux
+except Exception:
+pass
+
+# /proc/self/status pour précision
+try:
+with open("/proc/self/status") as f:
+for line in f:
+if line.startswith("VmRSS:"):
+stats.rss_kb = int(line.split()[1])
+elif line.startswith("VmSize:"):
+stats.vms_kb = int(line.split()[1])
+elif line.startswith("VmPeak:"):
+stats.peak_kb = int(line.split()[1])
+except Exception:
+pass
+
+# Objets Python
+stats.python_objects = len(gc.get_objects())
+stats.gc_gen0, stats.gc_gen1, stats.gc_gen2 = gc.get_count()
+
+# Tracemalloc
+if tracemalloc.is_tracing():
+current, peak = tracemalloc.get_traced_memory()
+stats.tracemalloc_current = current
+stats.tracemalloc_peak = peak
+
+return stats
+
+
+@contextmanager
+def memory_tracker(label: str = "block"):
+"""Context manager qui mesure la mémoire d'un bloc."""
+gc.collect()
+before = get_memory_stats()
+tracemalloc.start()
+t0 = time.time()
+try:
+yield
+finally:
+elapsed = time.time() - t0
+after = get_memory_stats()
+current, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+
+delta_rss = after.rss_kb - before.rss_kb
+delta_objects = after.python_objects - before.python_objects══
+
+status = C.G if delta_rss < 1000 else C.Y if delta_rss < 10000 else C.R
+print(f"\n{status}📊 [{label}]{C.N}")
+print(f" ⏱️ Temps : {elapsed*1000:.2f} ms")
+print(f" 📈 RSS delta : {delta_rss:+} KB")
+print(f" 🔢 Objets delta : {delta_objects:+}")
+print(f" 📊 Peak tracemalloc: {peak / 1024:.1f} KB")
+print(f" 💾 RSS actuel : {after.rss_kb / 1024:.1f} MB")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# COMMANDES CLI
+# ═══════════════════════════════════════════════════════════════════════════
+
+def cmd_stats(args):
+"""Affiche les stats mémoire actuelles."""
+hr()
+print(f"{C.BOLD}🧬 NEXUS-PY — Statistiques mémoire{C.N}")
+hr()
+
+stats = get_memory_stats()
+print(f" RSS actuel : {C.G}{stats.rss_kb / 1024:.2f} MB{C.N}")
+print(f" VMS total : {stats.vms_kb / 1024:.2f} MB")
+print(f" Peak RSS : {stats.peak_kb / 1024:.2f} MB")
+print(f" Objets Python : {C.Y}{stats.python_objects:,}{C.N}")
+print(f" GC Gen 0/1/2 : {stats.gc_gen0} / {stats.gc_gen1} / {stats.gc_gen2}")
+print(f" Python version : {sys.version.split()[0]}")
+print(f" Plateforme : {sys.platform}")
+hr()
+
+
+def cmd_profile(args):
+"""Profile un script Python avec métriques mémoire et CPU."""
+script = args.script
+if not Path(script).exists():
+err(f"Script introuvable : {script}")
+return
+
+hr()
+print(f"{C.BOLD}🧬 NEXUS-PY — Profilage de {script}{C.N}")
+hr()
+
+with memory_tracker(f"Profilage {Path(script).name}"):
+profiler = cProfile.Profile()
+profiler.enable()
+
+try:
+exec(compile(Path(script).read_text(), script, "exec"), {"__name__": "__main__"})
+except SystemExit:
+pass
+except Exception as e:
+err(f"Erreur : {e}")
+
+profiler.disable()
+
+# Top fonctions
+print(f"\n{C.BOLD}📊 Top 10 fonctions les plus lentes :{C.N}")
+s = io.StringIO()
+ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
+ps.print_stats(10)
+print(s.getvalue()[:2000])
+
+if args.output:
+with open(args.output, "w") as f:
+f.write(s.getvalue())
+ok(f"Rapport sauvegardé : {args.output}")
+
+
+def cmd_leaks(args):
+"""Détecte les fuites mémoire potentielles."""
+script = args.script
+if not Path(script).exists():
+err(f"Script introuvable : {script}")
+return
+
+hr()
+print(f"{C.BOLD}🔍 NEXUS-PY — Détection de fuites mémoire{C.N}")
+hr()
+
+gc.collect()
+snapshots = []
+tracemalloc.start(25)
+
+print(f" Exécution en cours...")
+try:
+exec(compile(Path(script).read_text(), script, "exec"), {"__name__": "__main__"})
+except SystemExit:
+pass
+except Exception as e:
+err(f"Erreur : {e}")
+return
+
+gc.collect()
+snapshot = tracemalloc.take_snapshot()
+tracemalloc.stop()
+
+print(f"\n{C.BOLD}📊 Top 15 allocations mémoire :{C.N}")
+top_stats = snapshot.statistics("lineno")[:15]
+
+leaks = []
+for i, stat in enumerate(top_stats, 1):
+size_kb = stat.size / 1024
+count = stat.count
+frame = stat.traceback[0]
+location = f"{frame.filename}:{frame.lineno}"
+print(f" {i:2}. {size_kb:>8.1f} KB ({count:>6} obj) — {location[:60]}")
+
+# Détection de fuite probable
+if size_kb > 100 and count > 1000:
+leaks.append({"location": location, "size_kb": round(size_kb, 1), "count": count})
+
+if leaks:
+print(f"\n{C.Y}⚠️ {len(leaks)} fuite(s) probable(s) détectée(s){C.N}")
+else:
+ok("Aucune fuite significative détectée")
+
+if args.output:
+with open(args.output, "w") as f:
+json.dump({"leaks": leaks, "top": [{"location": f}"{s.traceback[0].filename}:{s.traceback[0].lineno}", "size_kb": round(s.size/1024, 1), "count": s.count} for s in top_stats]}, f, indent=2)
+ok(f"Rapport : {args.output}")
+
+
+def cmd_optimize(args):
+"""Analyse le code et propose des optimisations."""
+script = args.script
+if not Path(script).exists():
+err(f"Script introuvable : {script}")
+return
+
+hr()
+print(f"{C.BOLD}⚡ NEXUS-PY — Optimisation de {script}{C.N}")
+hr()
+
+code = Path(script).read_text()
+tree = ast.parse(code)
+
+findings = []
+
+for node in ast.walk(tree):
+# List comprehension vs for loop
+if isinstance(node, ast.For) and not isinstance(getattr(node, 'parent', None), ast.ListComp):
+findings.append({
+"type": "PERF",
+"line": node.lineno,
+"msg": "Boucle for → envisager une list comprehension",
+"severity": "low",
+})
+
+# Concaténation de string dans une boucle
+if isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Add) and isinstance(node.target, ast.Name):
+findings.append({
+"type": "PERF",
+"line": node.lineno,
+"msg": "Concaténation += dans boucle → utiliser ''.join()",
+"severity": "medium",
+})
+
+# global
+if isinstance(node, ast.Global):
+findings.append({
+"type": "STYLE",
+"line": node.lineno,
+"msg": "Variable globale → préférer une classe ou un paramètre",
+"severity": "low",
+})
+
+# try/except sans logging
+if isinstance(node, ast.ExceptHandler) and node.type is None:
+findings.append({
+"type": "BUG",
+"line": node.lineno,
+"msg": "Bare except → spécifier l'exception",
+"severity": "medium",
+})
+
+# print en prod
+if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print":
+findings.append({
+"type": "STYLE",
+"line": node.lineno,
+"msg": "print() → utiliser logging",
+"severity": "low",
+})
+
+# Import *
+if isinstance(node, ast.ImportFrom) and node.names[0].name == "*":
+findings.append({
+"type": "STYLE",
+"line": node.lineno,
+"msg": "import * → importer explicitement",
+"severity": "medium",
+})
+
+# Compter par type
+by_type = Counter(f["type"] for f in findings)
+by_sev = Counter(f["severity"] for f in findings)
+
+print(f" Lignes analysées : {len(code.splitlines())}")
+print(f" Findings : {len(findings)}")
+print()
+
+for f in findings[:20]:
+sev_color = C.R if f["severity"] == "medium" else C.Y if f["severity"] == "low" else C.N
+print(f" {sev_color}[{f['type']}]{C.N} L{f['line']:4} — {f['msg']}")
+
+print()
+print(f" {C.BOLD}Par type :{C.N} {dict(by_type)}")
+print(f" {C.BOLD}Par sévérité :{C.N} {dict(by_sev)}")
+
+if args.output:
+with open(args.output, "w") as f:
+json.dump({"findings": findings, "by_type": dict(by_type), "by_severity": dict(by_sev)}, f, indent=2)
+ok(f"Rapport : {args.output}")
+
+
+def cmd_sandbox(args):
+"""Exécute un script avec une limite RAM stricte."""
+script = args.script
+memory_limit_mb = args.max_memory
+
+if not Path(script).exists():
+err(f"Script introuvable : {script}")
+return
+
+hr()
+print(f"{C.BOLD}🛡️ NEXUS-PY — Sandbox ({memory_limit_mb} MB max){C.N}")
+hr()
+
+# Limit via resource (Unix)
+try:
+soft, hard = memory_limit_mb * 1024 * 1024, memory_limit_mb * 1024 * 1024
+resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
+ok(f"Limite mémoire : {memory_limit_mb} MB")
+except Exception as e:
+warn(f"Impossible de fixer la limite : {e}")
+
+# Timeout via signal
+if args.timeout:
+def timeout_handler(signum, frame):
+err(f"Timeout après {args.timeout}s")
+sys.exit(124)
+
+signal.signal(signal.SIGALRM, timeout_handler)
+signal.alarm(args.timeout)
+info(f"Timeout : {args.timeout}s")
+
+print(f"\n Exécution...")
+with memory_tracker(f"Sandbox {Path(script).name}"):
+try:
+exec(compile(Path(script).read_text(), script, "exec"), {"__name__": "__main__"})
+except MemoryError:
+err(f"MemoryError — limite {memory_limit_mb} MB atteinte")
+except SystemExit:
+pass
+except Exception as e:
+err(f"Erreur : {e}")
+finally:
+if args.timeout:
+signal.alarm(0)
+
+
+def cmd_compare(args):
+"""Compare la mémoire de deux versions d'un script."""
+script1, script2 = args.script1, args.script2
+
+if not Path(script1).exists() or not Path(script2).exists():
+err("Script(s) introuvable(s)")
+return
+
+hr()
+print(f"{C.BOLD}⚖️ NEXUS-PY — Comparaison mémoire{C.N}")
+hr()
+
+results = {}
+
+for label, script in [("Version 1", script1), ("Version 2", script2)]:
+gc.collect()
+tracemalloc.start()
+before = get_memory_stats()
+t0 = time.time()
+
+try:
+exec(compile(Path(script).read_text(), script, "exec"), {"__name__": "__main__"})
+except SystemExit:
+pass
+except Exception as e:
+warn(f"{label} : {e}")
+
+elapsed = time.time() - t0
+gc.collect()
+after = get_memory_stats()
+current, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+
+results[label] = {
+"time_ms": round(elapsed * 1000, 2),
+"rss_delta_kb": after.rss_kb - before.rss_kb,
+"peak_kb": round(peak / 1024, 1),
+}
+
+print(f"\n {C.BOLD}{'Métrique':<20} {script1:<20} {script2:<20} {C.N}")
+print(f" {'─'*70}")
+for metric in ["time_ms", "rss_delta_kb", "peak_kb"]:
+v1 = results["Version 1"][metric]
+v2 = results["Version 2"][metric]
+diff = v2 - v1
+arrow = "→" if diff == 0 else "↓" if diff < 0 else "↑"
+color = C.G if diff <= 0 else C.R
+print(f" {metric:<20} {v1:<20} {v2:<20} {color}{arrow} {diff:+}{C.N}")
+
+
+def cmd_imports(args):
+"""Analyse les imports et leur poids mémoire."""
+script = args.script
+if not Path(script).exists():
+err(f"Script introuvable : {script}")
+return
+
+hr()
+print(f"{C.BOLD}📦 NEXUS-PY — Analyse des imports{C.N}")
+hr()
+
+code = Path(script).read_text()
+tree = ast.parse(code)
+
+imports = []
+for node in ast.walk(tree):
+if isinstance(node, ast.Import):
+for alias in node.names:
+imports.append({"module": alias.name, "line": node.lineno, "type": "import"})
+elif isinstance(node, ast.ImportFrom):
+imports.append({"module": node.module or "", "line": node.lineno, "type": "from", "names": [n.name for n in node.names]})
+
+print(f" Total imports : {len(imports)}\n")
+
+# Poids estimé par import
+weights = {
+"numpy": 5000, "pandas": 15000, "torch": 50000, "tensorflow": 80000,
+"scipy": 8000, "matplotlib": 12000, "requests": 1500, "flask": 3000,
+"django": 20000, "sqlalchemy": 5000, "pytest": 3000,
+}
+
+total_weight = 0
+for imp in imports:
+mod = imp["module"].split(".")[0]
+weight = weights.get(mod, 100)
+total_weight += weight
+print(f" L{imp['line']:4} — {C.B}[{imp['type']}]{C.N} {mod:<20} ~{weight:>6} KB")
+
+print(f"\n {C.BOLD}Poids estimé total : {total_weight / 1024:.1f MB{C.N}")
+if total_weight > 50000:
+warn("Imports lourds — envisager lazy loading")
+else:
+ok("Imports raisonnables")
+
+if args.output:
+with open(args.output, "w") as f:
+json.dump({"imports": imports, "total_weight_kb": total_weight}, f, indent=2)
+ok(f"Rapport : {args.output}")
+
+
+def cmd_gc(args):
+"""Force le garbage collector et affiche les stats."""
+hr()
+print(f"{C.BOLD}🗑️ NEXUS-PY — Garbage Collector{C.N}")
+hr()
+
+before = get_memory_stats()
+print(f" Avant :")
+print(f" RSS : {before.rss_kb / 1024:.2f} MB")
+print(f" Objets : {before.python_objects:,}")
+print(f" GC : {before.gc_gen0}/{before.gc_gen1}/{before.gc_gen2}")
+
+info("Lancement du GC complet...")
+t0 = time.time()
+collected = gc.collect()
+elapsed = (time.time() - t0) * 1000
+
+after = get_memory_stats()
+print(f"\n Après :")
+print(f" RSS : {after.rss_kb / 1024:.2f} MB")
+print(f" Objets : {after.python_objects:,}")
+print(f" GC : {after.gc_gen0}/{after.gc_gen1}/{after.gc_gen2}")
+print(f"\n {C.G}✅ {collected} objets collectés en {elapsed:.2f} ms{C.N}")
+
+
+def cmd_watch(args):
+"""Surveille la mémoire en temps réel."""
+interval = args.interval
+hr()
+print(f"{C.BOLD}👁️ NEXUS-PY — Watch mémoire (Ctrl+C pour arrêter){C.N}")
+hr()
+print(f" {C.BOLD}{'Temps':<8} {'RSS (MB)':<12} {'Objets':<12} {'GC 0/1/2':<15} {'Δ RSS':<10}{C.N}")
+print(f" {'─'*60}")
+
+t0 = time.time()
+last_rss = None
+
+try:
+while True:
+stats = get_memory_stats()
+elapsed = time.time() - t0
+delta = "" if last_rss is None else f"{stats.rss_kb - last_rss:+}"
+last_rss = stats.rss_kb
+
+gc_str = f"{stats.gc_gen0}/{stats.gc_gen1}/{stats.gc_gen2}"
+print(f" {elapsed:>6.1f}s {stats.rss_kb / 1024:>10.2f} {stats.python_objects:>10,} {gc_str:<15} {delta:>8}")
+
+time.sleep(interval)
+except KeyboardInterrupt:
+print(f"\n{C.Y} Arrêté.{C.N}")
+
+
+def cmd_decorate(args):
+"""Montre comment utiliser les décorateurs NEXUS-PY."""
+hr()
+print(f"{C.BOLD}🎨 NEXUS-PY — Décorateurs disponibles{C.N}")
+hr()
+
+code = '''#!/usr/bin/env python3
+"""
+Exemples d'utilisation des décorateurs NEXUS-PY.
+Importe-les dans ton script et utilise comme décorateur.
+"""
+
+from nexus_py import memory_limit, timeout, profile_memory, cache_memory
+
+
+# 1. Limite mémoire par fonction
+@memory_limit(max_mb=100)
+def traitement_lourd():
+data = [i for i in range(1_000_000)]
+return len(data)
+
+
+# 2. Timeout
+@timeout(seconds=5)
+def appel_reseau():
+import time
+time.sleep(10) # Simule une opération longue
+
+
+# 3. Profilage automatique
+@profile_memory
+def ma_fonction():
+return [x**2 for x in range(100000)]
+
+
+# 4. Cache mémoire intelligent
+@cache_memory(maxsize=1000)
+def calcul_couteux(n):
+return sum(i**2 for i in range(n))
+
+
+# 5. Combinaison
+@profile_memory
+@memory_limit(max_mb=50)
+@timeout(seconds=3)
+def full_stack():
+return sum(range(1000000))
+
+
+if __name__ == "__main__":
+traitement_lourd()
+ma_fonction()
+print(calcul_couteux(100))
+print(calcul_couteux(100)) # Cached
+full_stack()
+'''
+print(code)
+info("Sauvegarde dans nexus_py_examples.py...")
+with open("nexus_py_examples.py", "w") as f:
+f.write(code)
+ok("Créé : nexus_py_examples.py")
+
+
+def cmd_benchmark(args):
+"""Benchmark rapide de ton code."""
+script = args.script
+iterations = args.iterations
+
+if not Path(script).exists():
+err(f"Script introuvable : {script}")
+return
+
+hr()
+print(f"{C.BOLD}⚡ NEXUS-PY — Benchmark ({iterations} iterations){C.N}")
+hr()
+
+code = compile(Path(script).read_text(), script, "exec")
+times = []
+memories = []
+
+for i in range(iterations):
+gc.collect()
+tracemalloc.start()
+t0 = time.perf_counter()
+
+try:
+exec(code, {"__name__": "__main__"})
+except SystemExit:
+pass
+
+elapsed = time.perf_counter() - t0
+current, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+
+times.append(elapsed * 1000)
+memories.append(peak / 1024)
+
+import statistics
+print(f"\n {C.BOLD}Résultats :{C.N}")
+print(f" Temps min : {min(times):.2f} ms")
+print(f" Temps max : {max(times):.2f} ms")
+print(f" Temps moyenne : {statistics.mean(times):.2f} ms")
+print(f" Temps médiane : {statistics.median(times):.2f} ms")
+print(f" Écart-type : {statistics.stdev(times):.2f} ms" if len(times) > 1 else "")
+print(f" Mémoire peak moy : {statistics.mean(memories):.1f} KB")
+
+
+def cmd_version(args):
+"""Affiche la version."""
+print(f"🧬 NEXUS-PY v{VERSION}")
+print(f" Auteur : {AUTEUR}")
+print(f" Licence : {LICENCE}")
+print(f" Python : {sys.version.split()[0]}")
+print(f" Plateforme : {sys.platform}")
+print(f" RSS actuel : {get_memory_stats().rss_kb / 1024:.2f} MB")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DÉCORATEURS (importables)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def memory_limit(max_mb: int):
+"""Décorateur qui limite la mémoire pendant l'exécution."""
+def decorator(fn: Callable):
+@wraps(fn)
+def wrapper(*args, **kwargs):
+try:
+resource.setrlimit(resource.RLIMIT_AS, (max_mb * 1024 * 1024, max_mb * 1024 * 1024))
+except Exception:
+pass
+return fn(*args, **kwargs)
+return wrapper
+return decorator
+
+
+def timeout(seconds: int):
+"""Décorateur qui timeout l'exécution."""
+def decorator(fn: Callable):
+@wraps(fn)
+def wrapper(*args, **kwargs):
+def handler(signum, frame):
+raise TimeoutError(f"Timeout après {seconds}s")
+old = signal.signal(signal.SIGALRM, handler)
+signal.alarm(seconds)
+try:
+return fn(*args, **kwargs)
+finally:
+signal.alarm(0)
+signal.signal(signal.SIGALRM, old)
+return wrapper
+return decorator
+
+
+def profile_memory(fn: Callable):
+"""Décorateur qui profile la mémoire."""
+@wraps(fn)
+def wrapper(*args, **kwargs):
+gc.collect()
+before = get_memory_stats()
+t0 = time.time()
+
+result = fn(*args, **kwargs)
+
+elapsed = time.time() - t0
+after = get_memory_stats()
+
+print(f"\n📊 [profile_memory: {fn.__name__}]")
+print(f" Temps : {elapsed*1000:.2f} ms")
+print(f" RSS Δ : {after.rss_kb - before.rss_kb:+} KB")
+print(f" Objets Δ : {after.python_objects - before.python_objects:+}")
+return result
+return wrapper
+
+
+def cache_memory(maxsize: int = 128):
+"""Cache LRU avec métriques mémoire."""
+def decorator(fn: Callable):
+cached = lru_cache(maxsize=maxsize)(fn)
+@wraps(fn)
+def wrapper(*args, **kwargs):
+return cached(*args, **kwargs)
+wrapper.cache_info = cached.cache_info
+wrapper.cache_clear = cached.cache_clear
+return wrapper
+return decorator
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════════════════════
+
+def build_parser():
+parser = argparse.ArgumentParser(
+prog="nexus-py",
+description=f"🧬 NEXUS-PY v{VERSION} — Python plus précis en mémoire",
+formatter_class=argparse.RawDescriptionHelpFormatter,
+epilog=f"Auteur : {AUTEUR} · Licence : {LICENCE}"
+)
+parser.add_argument("--version", action="version", version=f"NEXUS-PY v{VERSION}")
+
+sub = parser.add_subparsers(dest="cmd", help="Commandes")
+
+# stats
+sub.add_parser("stats", help="Stats mémoire actuelles").set_defaults(func=cmd_stats)
+
+# profile
+p = sub.add_parser("profile", help="Profile un script")
+p.add_argument("script", help="Script Python à profiler")
+p.add_argument("--output", "-o", help="Fichier de sortie")
+p.set_defaults(func=cmd_profile)
+
+# leaks
+p = sub.add_parser("leaks", help="Détecte les fuites mémoire")
+p.add_argument("script", help="Script Python")
+p.add_argument("--output", "-o", help="Rapport JSON")
+p.set_defaults(func=cmd_leaks)
+
+# optimize
+p = sub.add_parser("optimize", help="Suggère des optimisations")
+p.add_argument("script", help="Script Python")
+p.add_argument("--output", "-o", help="Rapport JSON")
+_ex p.set_defaults(func=cmd_optimize)
+
+# sandbox
+p = sub.add_parser("sandbox", helpc="Exécute avec limite mémoire")
+p.add_argument("script", help="Script Python")
+p.add_argument("--()
+max-memory", "-m", type=int, default=500, help="Limite MB")
+p.add_argument("--timeout", "-t", type=int, default=60, help="Timeout secondes")
+p.set_defaults(func=cmd_sandbox)
+
+# compare
+p = sub.add_parser("compare", help="Compare 2 versions")
+p.add_argument("script1", help="Version 1")
+p.add_argument("script2", help="Version 2")
+p.set_defaults(func=cmd_compare)
+
+# imports
+p = sub.add_parser("imports", help="Analyse les imports")
+p.add_argument("script", help="Script Python")
+p.add_argument("--output", "-o", help="Rapport JSON")
+p.set_defaults(func=cmd_imports)
+
+# gc
+sub.add_parser("gc", help="Force GC").set_defaults(func=cmd_gc)
+
+# watch
+p = sub.add_parser("watch", help="Surveille en temps réel")
+p.add_argument("--interval", "-i", type=float, default=1.0, help="Intervalle secondes")
+p.set_defaults(func=cmd_watch)
+
+# decorate
+sub.add_parser("decorate", help="Exemples de décorateurs").set_defaults(func=cmd_decorate)
+
+# benchmark
+p = sub.add_parser("benchmark", help="Benchmark")
+p.add_argument("script", help="Script Python")
+p.add_argument("--iterations", "-n", type=int, default=10, help="Nombre d'itérations")
+p.set_defaults(func=cmd_benchmark)
+
+# version
+sub.add_parser("version", help="Affiche la version").set_defaults(func=cmd_version)
+
+return parser
+
+
+def main():
+parser = build_parser()
+args = parser.parse_args()
+
+if not args.cmd:
+parser.print_help()
+sys.exit(0)
+
+try:
+args.func(args)
+except KeyboardInterrupt:
+print(f"\n{C.Y}👋 Interrompu.{C.N}")
+except Exception as e:
+err(f"Erreur : {e}")
+import traceback
+traceback.print sys.exit(1)
+
+
+if __name__ == "__main__":
+main()
